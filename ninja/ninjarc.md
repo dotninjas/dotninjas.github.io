@@ -111,6 +111,173 @@ eg0() {
     j4810 data/weather.arff
 }
 
+#<
+#
+# To understand the output of `eg0`, we need some thoery.
+#
+# ### Decision Tree Learning
+#
+# `eg0` calls decision tree learner. Such learners work as follows.  When all
+# examples offer the same classification, those examples are said to be
+# _pure_. But when the classifications are different, the examples are said to
+# be _mixed_. The goal of decision tree learners is to find subsets of that data
+# that are less mixed and more pure.
+#
+# Two measures of _mixed_-ness are entropy and variance which are used for
+# symbolic and numeric classes, respectively. Variance is a measure of how much
+# _N_ numbers in a sample differ from the mean of that sample:
+#
+#   var(X) =  sum ( x[i] - mean(x) ) ^2 / N
+#
+# Entropy descibes the number of bits required to encode the distribution of
+# class symbols and is calculated using
+#
+#  ent(P) =  -1* sum( p[i] * log2( p[i] ) )
+#
+# For example, 6 oranges and 4 bananas and 2 apples can be found with probabilities
+# of 6/12, 4/12, and 2/12 respectively. Hence, the entropy of this fruit basket is
+#
+#  -1 * ( 1/2*log2( 1/2 ) + 1/3*log2( 1/3 ) + 1/6*log2( 1/6 ) ) = 1.47 bits
+#
+# If we divide this data on some attribute (e.g. color=yellow) then that
+# might select from all the bananas (if they are ripe) and, say, half the
+# the apples (if they are golden delicious). So this attribute selects for
+# a fruit basket:
+#
+# (6 bananas + 1 apple) = -1 * (  6/7*log2( 6/7 ) + 1/7*log2( 1/ 7) )  = 0.59 bits
+#
+# That is, color=yellow has reduced the mix from 1.47 to 0.59, so this might
+# be a good way to split the data.
+#
+# Decision tree learners:
+#
+# - find the attributes whose ranges most reduce mixed-ness;
+# - then they divide the data on that attribute's ranges, then
+# - they they recurse on each division.
+#
+# This process stops when the division is less than some magic `enough` parameter.
+# Some decision tree learners then run a post-processor that prunes sub-trees,  bottom to
+# top, until the error rate starts to rise (this can be useful to making large trees
+# more understable).
+#
+# The decision tree learner in `eg0` uses entropy (cause the classes
+# are symbolic) and generates a tree that looks like this:
+#
+#    outlook = sunny
+#    |   humidity <= 75: yes (2.0)
+#    |   humidity > 75: no (3.0)
+#    outlook = overcast: yes (4.0)
+#    outlook = rainy
+#    |   windy = TRUE: no (2.0)
+#    |   windy = FALSE: yes (3.0)
+#
+# From the above, we see that `eg0` found that `outlook` has the best ranges
+# for splitting the data, after which other things were found useful lower in the
+# tree.
+#
+# Exercise for the reader:
+#
+# - take the file data/weather.arff
+# - sort by outlook
+# - compare the overall distribution of classes to the distributions seen within
+#   each value of outlook's ranges.
+# - See if you can see why `eg0` split the data
+#   on `outlook`. Hint: try sorting instead on `windy`.
+#
+# ### Cross-Validation
+#
+# Reading the output of `eg0`, we see that it called the learners multiple times.
+#
+# - Once using all the data (see _Error on training data_)
+# - Then again in a _Stratified cross-validation_
+#
+# The second time is really ten repeated trials where the data was split into 10*10% buckets,
+# and a model learned on 90% of the data was tested on the remaining 10%. The cross-val results
+# are worse than in the first run, cause, these are results after using less training data, but
+# this second set of results might be more indicative of what happens when these learners are
+# applied to future, as yet unseen, examples.
+#
+# ### Performance measures
+#
+# Defect detectors can be assessed according to the following measures (and for the cross-val results,
+# `eg0` is reporting the mean across all the cross-vals):
+#
+#                                             module actually has defects
+#                                            +-------------+------------+
+#                                            |     no      |     yes    |
+#                                      +-----+-------------+------------+
+#       classifier predicts no defects |  no |      a      |      b     |
+#                                      +-----+-------------+------------+
+#     classifier predicts some defects | yes |      c      |      d     |
+#                                      +-----+-------------+------------+
+#
+# - accuracy                   = acc          = (a+d)/(a+b+c+d
+# - probability of detection   = pd  = recall = d/(b+d)
+# - probability of false alarm = pf           = c/(a+c)
+# - precision                  = prec         = d/(c+d)
+# - f                          = f            = 2*pd*prec / (pd + prec)
+# - g                          = g            = 2*pd*(1-pf) / (pd + 1 - pf)
+# - effort                     = amount of code selected by detector
+#                              = (c.LOC + d.LOC)/(Total LOC)
+#
+# Ideally, detectors have high PDs, low PFs, and low effort. This ideal state
+# rarely happens:
+#
+# - PD and effort are linked. The more modules that trigger the detector, the
+#   higher the PD. However, effort also gets increases
+#
+#
+# - High PD or low PF comes at the cost of high PF or low PD
+#   (respectively). This linkage can be seen in a standard receiver operator
+#   curve (ROC).  Suppose, for example, LOC> x is used as the detector (i.e. we
+#   assume large modules have more errors). LOC > x represents a family of
+#   detectors. At x=0, EVERY module is predicted to have errors. This detector
+#   has a high PD but also a high false alarm rate. At x=0, NO module is
+#   predicted to have errors. This detector has a low false alarm rate but won't
+#   detect anything at all. At 0<x<1, a set of detectors are generated as shown
+#   below:
+#
+#          pd
+#        1 |           x  x  x                KEY:
+#          |        x     .                   "."  denotes the line PD=PF
+#          |     x      .                     "x"  denotes the roc curve 
+#          |   x      .                            for a set of detectors
+#          |  x     .
+#          | x    . 
+#          | x  .
+#          |x .
+#          |x
+#          x------------------ pf    
+#         0                   1
+#
+#  Note that:
+#
+#  - The only way to make no mistakes (PF=0) is to do nothing
+# (PD=0)
+#
+#  - The only way to catch more detects is to make more
+#  mistakes (increasing PD means increasing PF).
+#
+#  - Our detector bends towards the "sweet spot" of
+#  <PD=1,PF=0> but does not reach it.
+#
+#  - The line pf=pd on the above graph represents the "no information"
+#  line. If pf=pd then the detector is pretty useless. The better
+#  the detector, the more it rises above PF=PD towards the "sweet spot".
+#>
+
+eg1() {
+    echo 
+    j48 data/weather.arff data/weather.arff
+}
+eg2() {
+    echo "j48 weather"
+    eg1 | wantgot
+}
+eg3() {
+    eg2 | abcd
+}
+
 eg100() { crossval 1 3 data/diabetes.arff  $RANDOM j48 nb; }
 eg200() { egX data/jedit-4.1.arff $Seed
 	statsX 
