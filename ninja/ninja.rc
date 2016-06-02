@@ -44,7 +44,7 @@
 
 # Go to a clean new directory, on a pathname with no spaces,  type...
 #
-# 1. wget https://github.com/REU-SOS/SOS/raw/master/src/ninja.zip
+# 1. wget https://github.com/dotninjas/dotninjas.github.io/blob/master/ninja.zip
 # 2. unzip ninja.zip
 # 3. cd ninja
 # 4. sh ninja

@@ -17,7 +17,7 @@ pass them on to someone else.
 In a clean directory on a pathname with no spaces, type:
 
 ```
-wget https://github.com/REU-SOS/SOS/raw/master/src/ninja.zip
+wget https://github.com/dotninjas/dotninjas.github.io/blob/master/ninja.zip
 unzip ninja.zip
 cd ninja
 sh ninja    # to start this tool
