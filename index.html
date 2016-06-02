@@ -1,0 +1,34 @@
+<p><img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg"></p>
+<h1 id="ninja-tricks-for-data-science">Ninja tricks for Data Science</h1>
+<p>Code in any language your like. Divide your work into lots of little bits. For big bits, write seperate files. For little fiddlely bits, write some short shell scripts. And to glue it all together, write some ninja code.</p>
+<p>The result is a live log of your actual processing, something that it is useful to you for your day to day work <em>AND</em> lets you package things and pass them on to someone else.</p>
+<h2 id="install-and-test">Install and Test</h2>
+<p>In a clean directory on a pathname with no spaces, type:</p>
+<pre><code>wget https://github.com/dotninjas/dotninjas.github.io/blob/master/ninja.zip
+unzip ninja.zip
+cd ninja
+sh ninja    # to start this tool
+eg2         # wait a few minutes while some text dribbles by....
+&lt;control-d&gt; # to quit this tool</code></pre>
+<p>If that works, you should see (in a few minutes), a report looking like this (note, your numbers may differ due to your local random number generator, which is a lesson in of itself... don't trust results from anywhere else).</p>
+<pre><code> pd
+ rank ,         name ,    med   ,  iqr
+ ----------------------------------------------------
+    1 ,           nb ,      45  ,    18 (   ------  *  -|---           ),27, 41, 45, 52, 64
+    1 ,          j48 ,      47  ,    25 ( -------    *  |---           ),22, 38, 47, 56, 64
+    2 ,       rbfnet ,      56  ,    10 (         ----  * -----        ),42, 50, 56, 59, 73
+    2 ,         bnet ,      58  ,    17 (       ------  |*   ------    ),37, 50, 58, 67, 81
+
+ pf
+ rank ,         name ,    med   ,  iqr
+ ----------------------------------------------------
+    1 ,           nb ,       8  ,     6 (    --   * ----|-             ), 4,  6,  8, 10, 15
+    2 ,       rbfnet ,       9  ,     7 (    ----- *    |-----         ), 4,  8,  9, 14, 19
+    2 ,          j48 ,      10  ,    10 (   -----   *   |  ------      ), 3,  7, 10, 16, 21
+    2 ,         bnet ,      13  ,     8 (        ---   *|   --         ), 7, 10, 13, 17, 19
+  __________________________________________________________</code></pre>
+<p>By the way, for an explanation of &quot;pd&quot; and &quot;pf&quot; go to <a href="http://menzies.us/pdf/07precision.pdf">top right, page1</a>.</p>
+<h2 id="usage">USAGE</h2>
+<pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">Here=$(</span><span class="kw">pwd</span><span class="ot">)</span> <span class="kw">bash</span> --init-file ninja.rc -i</code></pre>
+<p>TIP: place the above line into a file <code>ninja</code> and call with:</p>
+<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">sh</span> ninja</code></pre>
