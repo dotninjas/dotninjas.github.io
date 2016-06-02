@@ -56,7 +56,7 @@ ________
 
 # Go to a clean new directory, on a pathname with no spaces,  type...
 #
-# 1. wget https://github.com/REU-SOS/SOS/raw/master/src/ninja.zip
+# 1. wget https://github.com/dotninjas/dotninjas.github.io/blob/master/ninja.zip
 # 2. unzip ninja.zip
 # 3. cd ninja
 # 4. sh ninja
@@ -107,8 +107,12 @@ ________
 
 Seed=1
 
-eg1() { ok; crossval 2 2 data/soybean.arff   $RANDOM j48 nb; }
-eg2() { egX data/jedit-4.1.arff $Seed
+eg0() {
+    j4810 data/weather.arff
+}
+
+eg100() { crossval 1 3 data/diabetes.arff  $RANDOM j48 nb; }
+eg200() { egX data/jedit-4.1.arff $Seed
 	statsX 
       }
 
@@ -467,7 +471,7 @@ trainTest() {
     local learner="$1"
     local train="$2"
     local test="$3"
-    echo "$learner $data"
+    echo "$learner $(basename $data | sed 's/.arff//')"
     "$learner" "$train" "$test" | wantgot
 }
 
@@ -482,37 +486,25 @@ crossval() {
     local r="$4"
     shift 4
     local learners="$*"
+    rm -f $Tmp/train*arff
+    rm -f $Tmp/test*arff
     killControlM < "$data" |
-    gawk 'BEGIN                 { srand('$r') }
-          /^.RELATION/,/^.DATA/ { header= header "\n" $0; next } 
-          $0                    { Row[NR] = $0 }
-          END                   { 
-           for(i=1; i<=m; i++)
-             for(j=1; j<=n; j++)  {
-               arff  = i "_" j ".arff"
-               test  = dir "/test"  arff
-               train = dir "/train" arff
-               print header  >test
-               print header  >train
-               for(r in Row) { 
-                 if (rand() < 1/n) 
-                   print(Row[r]) >> test
-                 else
-                   print(Row[r]) >> train }}}
-         ' n=$n m=$m dir="$Tmp" 
+    gawk -f crossval.awk cr=$r n=$n m=$m dir="$Tmp"
+    
     echo "$Tmp"
     cd "$Tmp"
     for learner in $learners; do
-	for((i=1; i<=$m; i++)); do
-	    fyi "$learner $i"
-	    for((j=1; j<=$n; j++)); do
+        for((i=1; i<=$m; i++)); do
+            fyi "$learner $i"
+            for((j=1; j<=$n; j++)); do
               local arff="${i}_${j}.arff"		
-	      trainTest $learner train$arff test$arff | abcd
-	   done
-	done
+              trainTest $learner train$arff test$arff | abcd
+           done
+        done
     done
     cd "$Here"
 }
+
 
 
 ## 8 #####################################################
