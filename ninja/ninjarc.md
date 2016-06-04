@@ -513,6 +513,7 @@ echo
 ok() { # 3c) need a place for all the stuff that makes system usable
     dirs;
     ninjarc
+    sh2md
     zips   
 }
 
