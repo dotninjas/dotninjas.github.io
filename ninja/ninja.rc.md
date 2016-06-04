@@ -73,7 +73,7 @@ Seed=1
 eg0() {
     j4810 data/weather.arff
 }
-````
+```
 
 
 To understand the output of `eg0`, we need some thoery.
@@ -258,7 +258,7 @@ statsX() {
 }
 
 
-````
+```
 
 ## Tricks for Writing Shell files
 
@@ -281,7 +281,7 @@ Uncomment the next line to get debug information
 
 #set -x
 
-````
+```
 
 ### 1: Config Tricks
 
@@ -293,7 +293,7 @@ CONFIG Stuff
 
 Me=demo1
 
-````
+```
 
 1b) `$Tmp` for short-lived throwaways and `$Safe` for slow-to-reproduce files
 
@@ -302,7 +302,7 @@ Me=demo1
 Tmp="/tmp/$USER/$$" # A place to store BIG files. Warning: /tmp has limits on some sites
 Safe="$HOME/tmp/safe/$Me"
 
-````
+```
 
 1c) $Raw = source of raw data; $Cooked= pre-processed stuff
 
@@ -311,7 +311,7 @@ Safe="$HOME/tmp/safe/$Me"
 Raw="$Here"
 Cooked="$Safe"
 
-````
+```
 
 1d) java libraries
 
@@ -320,7 +320,7 @@ Cooked="$Safe"
 #Jar="$Here"/weka.jar
 Weka="$(which java) -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
 
-````
+```
 
 1e) Write edtior config files somewhere then tweak call
     to editor to use thos files
@@ -372,7 +372,7 @@ cat << 'EOF' > "$Edot"
 
 EOF
 
-````
+```
 
 ### 3: Startup (and silly) Trick
 
@@ -412,7 +412,7 @@ EOF
     done  
 fi
 
-````
+```
 
 3b) print name and license
 
@@ -487,7 +487,7 @@ EOF
     fi 
 }
 
-````
+```
 
 3e) no matter now this program ends, clean on exit
 
@@ -496,7 +496,7 @@ EOF
 trap zap 0 1 2 3 4 15 # catches normal end, Control-C, Control-D etc
 zap() { echo "Zapping..." ; rm -rf "$Tmp"; }
 
-````
+```
 
 3f) Define a convenience function to reload environment
 
@@ -504,7 +504,7 @@ zap() { echo "Zapping..." ; rm -rf "$Tmp"; }
 
 reload() { . "$Here"/ninja.rc ; }
 	
-````
+```
 
 ### 4. Useful shell one-liners
 
@@ -516,14 +516,14 @@ here() { cd $1; basename "$PWD"; }
 PROMPT_COMMAND='echo  -ne "NINJA:\033]0; $(here ..)/$(here .)\007"
 PS1=" $(here ..)/$(here .) \!> "'
 
-````
+```
 
 print to screen
 
 ```bash
 fyi() { echo "$@" 1>&2; } 
 
-````
+```
 
 other
 
@@ -540,7 +540,7 @@ alias .3='cd ../../../'
 alias .4='cd ../../../../'
 alias .5='cd ../../../../..'
 
-````
+```
 
 git tricks
 
@@ -565,7 +565,7 @@ gitting() {
     git config credential.helper 'cache --timeout=3600'
 }
 
-````
+```
 
 
 ### 4. Transforms (pre-processing)
@@ -589,7 +589,7 @@ stops()        {  gawk '
 prep()  { killControlM | downCase | 
                   stemming | stops; }
 
-````
+```
 
 ### 5. Learner functions
 
@@ -677,7 +677,7 @@ adtree10() {
        local learner=weka.classifiers.trees.ADTree
        $Weka $learner -B 10 -E -3 -p 0 -i -t $1
 }
-````
+```
 
 ### 6. Longer data mining functions
 
@@ -690,7 +690,7 @@ wantgot() { gawk '/:/ {
                       print actual, predicted }'
 }
 
-````
+```
 
 6b) print the learer and data set before generating the
     actual and predicted values
@@ -704,14 +704,14 @@ trainTest() {
     "$learner" "$train" "$test" | wantgot
 }
 
-````
+```
 
 6c) Know your a,b,c,d s 
 
 ```bash
 abcd() { python "$Here"/abcd.py; }
 
-````
+```
 
 6d) Generate data sets for an m*n cross-val. Call learners on each.
 
@@ -744,7 +744,7 @@ crossval() {
 
 
 
-````
+```
 
 ### 7 Start Up Actions
 
