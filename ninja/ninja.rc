@@ -91,13 +91,11 @@
 # - start with examples of how to call this code
 
 #>
-
 Seed=1
 
 eg0() {
     j4810 data/weather.arff
 }
-
 #<
 #
 # To understand the output of `eg0`, we need some thoery.
@@ -242,13 +240,10 @@ eg0() {
 #
 #  - The only way to make no mistakes (PF=0) is to do nothing
 # (PD=0)
-#
 #  - The only way to catch more detects is to make more
 #  mistakes (increasing PD means increasing PF).
-#
 #  - Our detector bends towards the "sweet spot" of
 #  <PD=1,PF=0> but does not reach it.
-#
 #  - The line pf=pd on the above graph represents the "no information"
 #  line. If pf=pd then the detector is pretty useless. The better
 #  the detector, the more it rises above PF=PD towards the "sweet spot".
@@ -286,36 +281,46 @@ statsX() {
 
 #<
 #
-# - uncomment the next line to get debug information
+# Uncomment the next line to get debug information
 #>
 
 #set -x
 
+#<
 # ### TOP1 : Config Stuff 
 
 # CONFIG Stuff
 
 # 2a) magic strings
+#>
 
 Me=demo1
 
+#<
 # 2b) $Tmp for short-lived throwaways and $Safe for slow-to-reproduce files
+#>
 
 Tmp="/tmp/$USER/$$" # A place to store BIG files. Warning: /tmp has limits on some sites
 Safe="$HOME/tmp/safe/$Me"
 
+#<
 # 2c) $Raw = source of raw data; $Cooked= pre-processed stuff
+#>
 
 Raw="$Here"
 Cooked="$Safe"
 
+#<
 # 2d) java libraries
+#>
 
 #Jar="$Here"/weka.jar
 Weka="$(which java) -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
 
+#<
 # 2e) Write edtior config files somewhere then tweak call
 #     to editor to use thos files
+#>
 
 Ed="/Applications/Emacs.app/Contents/MacOS/Emacs"
 Edot="/tmp/edot$$"
@@ -362,9 +367,10 @@ cat << 'EOF' > "$Edot"
 
 EOF
 
+#<
 ## 3 ##################################################
 # SILLY: print a ninja, just once (on first load)
-
+#>
 
 if [ "$Splashed" != 1 ] ; then
     Splashed=1
@@ -395,11 +401,12 @@ EOF
     done  
 fi
 
+#<
 ## 3 ##################################################
 # THINGS TO DO AT START, AT END
 
 # 3a) print name and license
-
+#>
 echo
 echo "ninja.rc v1.0 (c) 2016 Tim Menzies, MIT (v2) license"
 echo
@@ -407,7 +414,7 @@ echo
 ok() { # 3b) need a place for all the stuff that makes system usable
     dirs;
     ninjarc
-    zips
+    zips   
 }
 
 dirs() { # 3c) create all the required dirs
@@ -421,12 +428,16 @@ zips() { # make a convenient download
     )
 }
 sh2md() {
-    for f1 in ninja/ninja.rc; do
-        f2 = "$Here/${f1}.md"
+    for f0 in ninja.rc; do
+        f1="$Here/$f0"
+        f2="${f1}.md"
+        echo $f1
+        echo $f2
         if [ "$f1" -nt "$f2" ]; then
-            (cat "$Here/etc/header.html"
+            echo "making $f2 ..."
+            (cat "$Here/etc/header.md"
              gawk -f "$Here/etc/sh2md.awk" "$f1"
-             cat "$Here/etc/footer.html"
+             cat "$Here/etc/footer.md"
             ) >  "$f2"
             git add "$f2"
         fi
@@ -466,28 +477,38 @@ EOF
     fi 
 }
 
+#<
 # TIP: 3d) no matter now this program ends, clean on exit
+#>
 
 trap zap 0 1 2 3 4 15 # catches normal end, Control-C, Control-D etc
 zap() { echo "Zapping..." ; rm -rf "$Tmp"; }
 
+#<
 # TIP: 3e) Define a convenience function to reload environment
+#>
 
 reload() { . "$Here"/ninja.rc ; }
 	
+#<
 ## 4 ######################################################
 # TIP: useful shell one-liners
 
 # change the prompt to include "NINJA" and the local dirs
+#>
 here() { cd $1; basename "$PWD"; }
 
 PROMPT_COMMAND='echo  -ne "NINJA:\033]0; $(here ..)/$(here .)\007"
 PS1=" $(here ..)/$(here .) \!> "'
 
+#<
 # print to screen
+#>
 fyi() { echo "$@" 1>&2; } 
 
+#<
 # other
+#>
 alias ls='ls -G'                 ## short format
 alias ll='ls -la'                ## long format
 alias l.='ls -d .* --color=auto' ## Show hidden files
@@ -500,7 +521,9 @@ alias .3='cd ../../../'
 alias .4='cd ../../../../'
 alias .5='cd ../../../../..'
 
+#<
 # git tricks
+#>
 gitpush() {
     ready
     git status
@@ -521,8 +544,10 @@ gitting() {
     git config credential.helper 'cache --timeout=3600'
 }
 
+#<
 ## 5 #####################################################
 # TIP: Write little shell scripts for standard actions
+#>
 
 killControlM() { tr -d '\015'; } 
 downCase()     { tr A-Z a-z; }
@@ -540,6 +565,7 @@ stops()        {  gawk '
 prep()  { killControlM | downCase | 
                   stemming | stops; }
 
+#<
 ## 6 ######################################################
 # TIP: write convenience functions for learners
 
@@ -550,6 +576,7 @@ prep()  { killControlM | downCase |
 
 # The latter functions ("xx10") accept one data file $1 which is
 # used in a 10-way cross-val by "-t $1".
+#>
 
 linearRegression(){
 	local learner=weka.classifiers.functions.LinearRegression 
@@ -623,18 +650,22 @@ adtree10() {
        local learner=weka.classifiers.trees.ADTree
        $Weka $learner -B 10 -E -3 -p 0 -i -t $1
 }
+#<
 ## 7 ######################################################
 # Longer data mining functions
 
 # 7a) just print the actual and predicted values.
+#>
 wantgot() { gawk '/:/ {
                       split($2,a,/:/); actual    = a[2] 
                       split($3,a,/:/); predicted = a[2]
                       print actual, predicted }'
 }
 
+#<
 # 7b) print the learer and data set before generating the
 #     actual and predicted values
+#>
 trainTest() {
     local learner="$1"
     local train="$2"
@@ -643,10 +674,14 @@ trainTest() {
     "$learner" "$train" "$test" | wantgot
 }
 
+#<
 # 7c) Know your a,b,c,d s 
+#>
 abcd() { python "$Here"/abcd.py; }
 
+#<
 # 7d) Generate data sets for an m*n cross-val. Call learners on each.
+#>
 crossval() {
     local m="$1"
     local n="$2"
@@ -675,21 +710,9 @@ crossval() {
 
 
 
+#<
 ## 8 #####################################################
 ## any start up actions?
+#>
 ok
 
-######################################################
-# Todo
-# #pipe into a while and if
-#— tow different pies
-#make: don’t redo
-#nohup
-
-# pattern
-#fetch : curl find mysql
-#select: grep sql awk etc
-#transform: sort, head, tail, sed, gawk
-#learn
-#report
-#visualize: gnuplot,gvpr
