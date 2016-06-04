@@ -187,12 +187,12 @@ Defect detectors can be assessed according to the following measures (and for th
 Ideally, detectors have high PDs, low PFs, and low effort. This ideal state
 rarely happens:
 
+- High PD or low PF comes at the cost of high PF or low PD
+  (respectively).
 - PD and effort are linked. The more modules that trigger the detector, the
   higher the PD. However, effort also gets increases
 
-
-- High PD or low PF comes at the cost of high PF or low PD
-  (respectively). This linkage can be seen in a standard receiver operator
+  This linkage can be seen in a standard receiver operator
   curve (ROC).  Suppose, for example, LOC> x is used as the detector (i.e. we
   assume large modules have more errors). LOC > x represents a family of
   detectors. At x=0, EVERY module is predicted to have errors. This detector
@@ -260,6 +260,20 @@ statsX() {
 
 ````
 
+## Tricks for Writing Shell files
+
+The rest of this code is a set of standard tricks for shell files. These
+tricks divide into
+
+0. Debug tricks
+1. Config tricks
+2. Start up tricks (includes silly tricks)
+3. Useful shell one-liners
+4. Transforms (pre-processing)
+5. Learner functions
+6. Longer learner functions
+
+### 0: Debug Tricks
 
 Uncomment the next line to get debug information
 
@@ -269,11 +283,11 @@ Uncomment the next line to get debug information
 
 ````
 
-### TOP1 : Config Stuff 
+### 1: Config Tricks
 
 CONFIG Stuff
 
-2a) magic strings
+1a) magic strings
 
 ```bash
 
@@ -281,7 +295,7 @@ Me=demo1
 
 ````
 
-2b) $Tmp for short-lived throwaways and $Safe for slow-to-reproduce files
+1b) `$Tmp` for short-lived throwaways and `$Safe` for slow-to-reproduce files
 
 ```bash
 
@@ -290,7 +304,7 @@ Safe="$HOME/tmp/safe/$Me"
 
 ````
 
-2c) $Raw = source of raw data; $Cooked= pre-processed stuff
+1c) $Raw = source of raw data; $Cooked= pre-processed stuff
 
 ```bash
 
@@ -299,7 +313,7 @@ Cooked="$Safe"
 
 ````
 
-2d) java libraries
+1d) java libraries
 
 ```bash
 
@@ -308,7 +322,7 @@ Weka="$(which java) -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as 
 
 ````
 
-2e) Write edtior config files somewhere then tweak call
+1e) Write edtior config files somewhere then tweak call
     to editor to use thos files
 
 ```bash
@@ -360,8 +374,12 @@ EOF
 
 ````
 
-# 3 ##################################################
-SILLY: print a ninja, just once (on first load)
+### 3: Startup (and silly) Trick
+
+3a: SILLY: print a ninja, just once (on first load)
+
+Also, on load, check for any missing required executables.
+
 
 ```bash
 
@@ -396,23 +414,20 @@ fi
 
 ````
 
-# 3 ##################################################
-THINGS TO DO AT START, AT END
-
-3a) print name and license
+3b) print name and license
 
 ```bash
 echo
 echo "ninja.rc v1.0 (c) 2016 Tim Menzies, MIT (v2) license"
 echo
 
-ok() { # 3b) need a place for all the stuff that makes system usable
+ok() { # 3c) need a place for all the stuff that makes system usable
     dirs;
     ninjarc
     zips   
 }
 
-dirs() { # 3c) create all the required dirs
+dirs() { # 3d) create all the required dirs
     mkdir -p $"Safe" "$Tmp" "$Raw" "$Cooked"
 }
 zips() { # make a convenient download 
@@ -474,7 +489,7 @@ EOF
 
 ````
 
-TIP: 3d) no matter now this program ends, clean on exit
+3e) no matter now this program ends, clean on exit
 
 ```bash
 
@@ -483,7 +498,7 @@ zap() { echo "Zapping..." ; rm -rf "$Tmp"; }
 
 ````
 
-TIP: 3e) Define a convenience function to reload environment
+3f) Define a convenience function to reload environment
 
 ```bash
 
@@ -491,8 +506,7 @@ reload() { . "$Here"/ninja.rc ; }
 	
 ````
 
-# 4 ######################################################
-TIP: useful shell one-liners
+### 4. Useful shell one-liners
 
 change the prompt to include "NINJA" and the local dirs
 
@@ -553,8 +567,9 @@ gitting() {
 
 ````
 
-# 5 #####################################################
-TIP: Write little shell scripts for standard actions
+
+### 4. Transforms (pre-processing)
+
 
 ```bash
 
@@ -576,8 +591,9 @@ prep()  { killControlM | downCase |
 
 ````
 
-# 6 ######################################################
-TIP: write convenience functions for learners
+### 5. Learner functions
+
+Wwrite convenience functions for learners
 
 In the following there are 2 kinds of functions: "xx" and "xx10".
 
@@ -663,10 +679,9 @@ adtree10() {
 }
 ````
 
-# 7 ######################################################
-Longer data mining functions
+### 6. Longer data mining functions
 
-7a) just print the actual and predicted values.
+6a) just print the actual and predicted values.
 
 ```bash
 wantgot() { gawk '/:/ {
@@ -677,7 +692,7 @@ wantgot() { gawk '/:/ {
 
 ````
 
-7b) print the learer and data set before generating the
+6b) print the learer and data set before generating the
     actual and predicted values
 
 ```bash
@@ -691,14 +706,14 @@ trainTest() {
 
 ````
 
-7c) Know your a,b,c,d s 
+6c) Know your a,b,c,d s 
 
 ```bash
 abcd() { python "$Here"/abcd.py; }
 
 ````
 
-7d) Generate data sets for an m*n cross-val. Call learners on each.
+6d) Generate data sets for an m*n cross-val. Call learners on each.
 
 ```bash
 crossval() {
@@ -731,8 +746,7 @@ crossval() {
 
 ````
 
-# 8 #####################################################
-# any start up actions?
+### 7 Start Up Actions
 
 ```bash
 ok
