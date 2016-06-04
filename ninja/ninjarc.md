@@ -310,6 +310,12 @@ eg0() {
 # this second set of results might be more indicative of what happens when these learners are
 # applied to future, as yet unseen, examples.
 #
+# All the ninja.rc learners come be called in two ways:
+#
+# - `x10 data` runs a 10-way cross-val on `data`; i.e. this form calls the learner 10 times and prints summary statistics.
+# - `x train test` runs the `x` learner, training or `train` then testing or `test`; i.e. this form calls the learner once
+#   and prints out details on each test instance.
+##
 # ### Performance measures
 #
 # Defect detectors can be assessed according to the following measures (and for the cross-val results,
@@ -374,39 +380,245 @@ eg0() {
 #    the detector, the more it rises above PF=PD towards the "sweet spot".
 #
 # ### From Output to Meaning
-# 
+#
+# `eg1` shows the results of calling a decision tree learner with the same training and testing data. This
+# call prints out details on each test instance:
 #>
 eg1() {
     echo 
     j48 data/weather.arff data/weather.arff
 }
+#<
+# Output:
+#      === Predictions on test data ===
+#      
+#       inst#     actual  predicted error prediction
+#           1       2:no       2:no       1
+#           2       2:no       2:no       1
+#           3      1:yes      1:yes       1
+#           4      1:yes      1:yes       1
+#           5      1:yes      1:yes       1
+#           6       2:no       2:no       1
+#           7      1:yes      1:yes       1
+#           8       2:no       2:no       1
+#           9      1:yes      1:yes       1
+#          10      1:yes      1:yes       1
+#          11      1:yes      1:yes       1
+#          12      1:yes      1:yes       1
+#          13      1:yes      1:yes       1
+#          14       2:no       2:no       1
+#
+# This is a little two verbose: we just want the actual and predicted values from each instance.
+#
+#>
 eg2() {
     echo "j48 weather"
     eg1 | wantgot
 }
+#<
+# This outputs:
+#
+#      j48 weather
+#      no no
+#      no no
+#      yes yes
+#      yes yes
+#      yes yes
+#      no no
+#      yes yes
+#      no no
+#      yes yes
+#      yes yes
+#      yes yes
+#      yes yes
+#      yes yes
+#      no no
+#
+# We can summarize the above into precison, recall etc, using the `abcd` command which shows performance
+# for each class:
+#>
 eg3() {
     eg2 | abcd
 }
-
-eg100() { crossval 1 3 data/diabetes.arff  $RANDOM j48 nb; }
-eg200() { egX data/jedit-4.1.arff $Seed
-	statsX 
-      }
-
-egX() { ok
-	local what="`basename $1 | sed 's/.arff//' `"
-	crossval 5 5 $1 $2 rbfnet bnet j48 nb > "$Tmp/egX"
-	gawk  '/true/ {print $2,$10}' "$Tmp/egX" > "$Tmp/egX.pd"
-	gawk  '/true/ {print $2,$11}' "$Tmp/egX" > "$Tmp/egX.pf"	
-      }
-
-statsX() {
-    echo "pd"; python "$Here"/stats.py < "$Tmp/egX.pd"
-    echo "pf"; python "$Here"/stats.py < "$Tmp/egX.pf"	
-}
-
-
 #<
+#
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ---------------------------------------------------------------------------------------------------- 
+#      # j48                  weather       5    9    0   0    5  100 100   0 100 100 100 no
+#      # j48                  weather       9    5    0   0    9  100 100   0 100 100 100 yes
+#
+# So this is saying that if we test on the train data, we can predict everything perfectly. Hooray!
+#
+# Of course, this is a vast over-estimate on the performance. The real test is a cross-validation
+# that uses data not seen in training.
+#
+# The following code runs `crossval` (which is a function defined later in this file) that 1 time,
+# divides the data into 3 bins, then trains on two of them and tests on the other third.  Note that
+# the file ends with a list of learners to try (in our case, `j48` and `jrip`):
+#>
+eg4() {
+    crossval 1 3 data/weather.arff  1 j48 jrip;
+}
+#<
+#
+# This produces
+#      j48 1
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ----------------------------------------------------------------------------------------------------
+#      # j48                  weather       1    1    1   2    0   25   0  67   0  40   0 no
+#      # j48                  weather       3    0    2   1    1   25  33 100  50  40   0 yes
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ----------------------------------------------------------------------------------------------------
+#      # j48                  weather       2    2    2   0    0   50   0   0  50   0   0 no
+#      # j48                  weather       2    0    0   2    2   50 100 100  50  67   0 yes
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ----------------------------------------------------------------------------------------------------
+#      # j48                  weather       2    1    0   1    2   75 100  50  67  80  67 no
+#      # j48                  weather       2    2    1   0    1   75  50   0 100  67  67 yes
+#      jrip 1
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ----------------------------------------------------------------------------------------------------
+#      # jrip                 weather       1    2    1   1    0   50   0  33   0  67   0 no
+#      # jrip                 weather       3    0    1   1    2   50  67 100  67  67   0 yes
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ----------------------------------------------------------------------------------------------------
+#      # jrip                 weather       2    2    2   0    0   50   0   0  50   0   0 no
+#      # jrip                 weather       2    0    0   2    2   50 100 100  50  67   0 yes
+#      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
+#      ----------------------------------------------------------------------------------------------------
+#      # jrip                 weather       2    2    2   0    0   50   0   0  50   0   0 no
+#      # jrip                 weather       2    0    0   2    2   50 100 100  50  67   0 yes
+#      
+#
+# That's a lot of information to process-- which makes it hard to work out who is doing good or bad
+# on this data. And this was a very simple run- a real experiment would be a 5x5 cross-val running multiple
+# learners with varying data pre-processors.
+#
+# What we need to do is pull some columns of interest from the above. Columns 2,10,11 are the learner,
+# recall and false alarms rates, respectively. The following code finds all the lines that predict
+# for playing golf, then writes the learner and pd values to `eg5.pd`
+# the learner and pf values to `eg5.pf`.
+#
+#> 
+eg5() {
+    local i=$Tmp/eg5
+    crossval 5 5 data/weather.arff  $Seed j48 jrip | grep yes > $i
+    gawk  '{print $2,$10}' "$i" > "$i.pd"
+    gawk  '{print $2,$11}' "$i" > "$i.pf"
+}
+#<
+#
+# Now we have two files containing just the learner and pd (or pf) values. For example, here are some lines from those files:
+#
+#      $Tmp/eg5.pd         $Tmp/eg5.pf
+#      -----------         -----------
+#      ...                 ...
+#      j48 100             j48 0
+#      j48 50              j48 0
+#      j48 50              j48 0
+#      j48 0               j48 50
+#      j48 0               j48 50
+#      jrip 0              jrip 100
+#      jrip 100            jrip 100
+#      jrip 100            jrip 0
+#      jrip 0              jrip 100
+#      ...                 ...
+#
+# For each file, for each learner listed in column1, we can run significance test and an effect sizue test using the `stats.py`
+# file.
+#>
+eg5a() {
+    local i=$Tmp/eg5
+    if [ -f "$i.pd" ]; then
+       report pd $i
+       report pf $i
+    else
+        eg5
+        eg5a
+    fi
+}
+report() {
+    echo $1
+    python "$Here/stats.py" < ${2}.$1
+}
+#<
+## Note a trick in the above: it only calls `eg5` if the `eg51 report files are missing. This is an important optimization
+# for very slow learners- only do the crossval if the crossval results are currently unknown.
+#
+# In any case, when this runs, we see that that `j48`'s `pd` distribution contains higher values and while its `pf`
+# distributions contains more lower values.
+#
+#
+#      pd     
+#      rank ,         name ,    med   ,  iqr
+#      ----------------------------------------------------
+#         1 ,         jrip ,     100  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
+#         1 ,          j48 ,     100  ,    50 (-------------- |             *), 0.00, 50.00, 100.00, 100.00, 100.00
+#
+#      pf      
+#      rank ,         name ,    med   ,  iqr
+#      ----------------------------------------------------
+#         1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
+#         1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
+#
+# Now lets do all that again, this time for some SE data and for more leaners:
+#
+#>
+eg7() {
+    local data="data/jedit-4.1.arff"         # edit this line to change the data
+    local learners="j48 jrip nb rbfnet bnet" # edit this line to change the leaners
+    local goal=true                          # edit this line to hunt for another goal                          
+    local i=$Tmp/eg7
+    if [ -f "$i.pd" ]; then
+       report pd $i
+       report pf $i
+    else
+        crossval 5 5 "$data" $Seed $learners | grep $goal > $i
+        gawk  '{print $2,$10}' "$i" > "$i.pd"
+        gawk  '{print $2,$11}' "$i" > "$i.pf"
+        eg7
+   fi
+}
+eg8() {
+    local data="data/jedit-4.1.arff"         # edit this line to change the data
+    local learners=" nb" # edit this line to change the leaners
+    local goal=true                         # edit this line to hunt for another goal                          
+    local i=$Tmp/eg8
+    if [ -f "$i.pd" ]; then
+       report pd $i
+       report pf $i
+    else
+        crossval 2 2 "$data" $Seed $learners | grep $goal > $i
+        gawk  '{print $2,$10}' "$i" > "$i.pd"
+        gawk  '{print $2,$11}' "$i" > "$i.pf"
+        eg7
+   fi
+}
+#<
+#
+# This produces the following. For `pd` _more_ is better so `j48` is the
+# winner. For `pf` _less_ is better but the stats report (in column1) is saying
+# that all the `pf` results are very similar. So we'll declare `j48` to be the overall winner.
+#
+#      pd
+#      
+#      rank ,         name ,    med   ,  iqr
+#      ----------------------------------------------------
+#         1 ,           nb ,      45  ,    18 (      ----   * |---           ),25, 36, 45, 53, 60
+#         1 ,       rbfnet ,      47  ,    20 (      ------- *|   --         ),25, 43, 47, 60, 67
+#         2 ,         jrip ,      60  ,    23 (         ------|   *  ----    ),33, 50, 60, 71, 80
+#         2 ,         bnet ,      60  ,    17 (           ----|-  * -        ),40, 55, 60, 67, 71
+#         3 ,          j48 ,      72  ,    16 (               |----   *  --  ),50, 65, 72, 81, 87
+#      pf
+#      
+#      rank ,         name ,    med   ,  iqr
+#      ----------------------------------------------------
+#         1 ,           nb ,       7  ,     6 (     --   *   -|-             ), 4,  5,  7, 10, 12
+#         1 ,          j48 ,       7  ,     6 (     --   *  --|---           ), 4,  5,  7,  9, 13
+#         1 ,         jrip ,       9  ,    10 (  ---        * |------        ), 2,  4,  9, 11, 15
+#         1 ,       rbfnet ,       9  ,     5 (     -----   * |----          ), 4,  7,  9, 11, 14
+#         1 ,         bnet ,      11  ,     6 (        -----  |*   ------    ), 6,  9, 11, 14, 18
+#
 # ## Tricks for Writing Shell files
 #
 # The rest of this code is a set of standard tricks for shell files. These
@@ -738,7 +950,7 @@ bnet10(){
 }
 jrip() {
         local learner=weka.classifiers.rules.JRip
-        $Weka $learner -F 3 -N 2.0 -O 2 -S 1 -t $1 -T $2
+        $Weka $learner -p 0 -F 3 -N 2.0 -O 2 -S 1 -t $1 -T $2
 }
 jrip10() {
         local learner=weka.classifiers.rules.JRip
