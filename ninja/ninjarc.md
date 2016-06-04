@@ -258,7 +258,7 @@ eg0() {
 # Decision tree learning is a "divide and conqueor" method. Another approach is
 # "cover and differentiate". This approach 
 #
-# - finds some conjunction that predicts for the most frequent class;
+# - finds some conjunction that best  predicts for soem class;
 # - prints that conjunction;
 # - removes all the examples that match (i.e. are "covered") by that conjunction;
 # - then recurses on the remaining examples.
@@ -286,6 +286,16 @@ eg0() {
 #
 # Each of the above tests is one of the covering rules and each
 # subsequent test holds in the _negation_ of the tests before it.
+#
+# When are rules (like those made from `jrip`) better than decision trees (like those made from `j48`)?
+# The answer is... it depends. If you are a "C" programmer and you want to quickly drop some learner output
+# into your code, then `jrip` is useful. Also, when decision trees get too large, `jrip` sometimes produces more
+# understandable models than `j48`.
+#
+# On the other hand, some data sets respond better to `j48` than `jrip` and you can't really tell before hand. Which
+# means that all you can do is try different learners and see which one(s) do better on the local data.
+#
+# Which brings us to the issue of how to compare the performance of different learners...
 #
 # ### Cross-Validation
 #
