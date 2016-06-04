@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
-
 # For pretty version of this code, see
 # https://github.com/REU-SOS/SOS/blob/master/src/ninja/ninjarc.md
-
 ########################################################
 # ninja.rc : command line tricks for data mining
 # Copyright (c) 2016 Tim Menzies tim@menzies.us
-
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,6 +26,7 @@
 
 
 #<
+#
 # # Ninja.rc
 #
 # Code in any language your like. Divide your work into lots of little bits.
@@ -54,21 +53,21 @@
 # (note, your numbers may differ due to your local random number generator,
 # which is a lesson in of itself... don't trust results from anywhere else).
 #
-#     pd
-#     rank ,         name ,    med   ,  iqr
-#     ----------------------------------------------------
-#        1 ,           nb ,      45  ,    18 (   ------  *  -|---           ),27, 41, 45, 52, 64
-#        1 ,          j48 ,      47  ,    25 ( -------    *  |---           ),22, 38, 47, 56, 64
-#        2 ,       rbfnet ,      56  ,    10 (         ----  * -----        ),42, 50, 56, 59, 73
-#        2 ,         bnet ,      58  ,    17 (       ------  |*   ------    ),37, 50, 58, 67, 81
+#      pd
+#      rank ,         name ,    med   ,  iqr
+#      ----------------------------------------------------
+#         1 ,           nb ,      45  ,    18 (   ------  *  -|---           ),27, 41, 45, 52, 64
+#         1 ,          j48 ,      47  ,    25 ( -------    *  |---           ),22, 38, 47, 56, 64
+#         2 ,       rbfnet ,      56  ,    10 (         ----  * -----        ),42, 50, 56, 59, 73
+#         2 ,         bnet ,      58  ,    17 (       ------  |*   ------    ),37, 50, 58, 67, 81
 #
-#     pf
-#     rank ,         name ,    med   ,  iqr
-#     ----------------------------------------------------
-#        1 ,           nb ,       8  ,     6 (    --   * ----|-             ), 4,  6,  8, 10, 15
-#        2 ,       rbfnet ,       9  ,     7 (    ----- *    |-----         ), 4,  8,  9, 14, 19
-#        2 ,          j48 ,      10  ,    10 (   -----   *   |  ------      ), 3,  7, 10, 16, 21
-#        2 ,         bnet ,      13  ,     8 (        ---   *|   --         ), 7, 10, 13, 17, 19
+#      pf
+#      rank ,         name ,    med   ,  iqr
+#      ----------------------------------------------------
+#         1 ,           nb ,       8  ,     6 (    --   * ----|-             ), 4,  6,  8, 10, 15
+#         2 ,       rbfnet ,       9  ,     7 (    ----- *    |-----         ), 4,  8,  9, 14, 19
+#         2 ,          j48 ,      10  ,    10 (   -----   *   |  ------      ), 3,  7, 10, 16, 21
+#         2 ,         bnet ,      13  ,     8 (        ---   *|   --         ), 7, 10, 13, 17, 19
 #
 # By the way, for an explanation of "pd" and "pf" go to http://menzies.us/07precision.pdf.
 #
@@ -115,24 +114,25 @@ eg0() {
 # symbolic and numeric classes, respectively. Variance is a measure of how much
 # _N_ numbers in a sample differ from the mean of that sample:
 #
-#   var(X) =  sum ( x[i] - mean(x) ) ^2 / N
+#     var(X) =  sum ( x[i] - mean(x) ) ^2 / N
 #
 # Entropy descibes the number of bits required to encode the distribution of
 # class symbols and is calculated using
 #
-#  ent(P) =  -1* sum( p[i] * log2( p[i] ) )
+#     ent(P) =  -1* sum( p[i] * log2( p[i] ) )
 #
 # For example, 6 oranges and 4 bananas and 2 apples can be found with probabilities
 # of 6/12, 4/12, and 2/12 respectively. Hence, the entropy of this fruit basket is
 #
-#  -1 * ( 1/2*log2( 1/2 ) + 1/3*log2( 1/3 ) + 1/6*log2( 1/6 ) ) = 1.47 bits
+#     -1 * ( 1/2*log2( 1/2 ) + 1/3*log2( 1/3 ) + 1/6*log2( 1/6 ) ) = 1.47 bits
 #
 # If we divide this data on some attribute (e.g. color=yellow) then that
 # might select from all the bananas (if they are ripe) and, say, half the
 # the apples (if they are golden delicious). So this attribute selects for
 # a fruit basket:
 #
-# (6 bananas + 1 apple) = -1 * (  6/7*log2( 6/7 ) + 1/7*log2( 1/ 7) )  = 0.59 bits
+#     (6 bananas + 1 apple) = -1 * (  6/7*log2( 6/7 ) + 1/7*log2( 1/ 7) )
+#                           = 0.59 bits
 #
 # That is, color=yellow has reduced the mix from 1.47 to 0.59, so this might
 # be a good way to split the data.
@@ -151,13 +151,13 @@ eg0() {
 # The decision tree learner in `eg0` uses entropy (cause the classes
 # are symbolic) and generates a tree that looks like this:
 #
-#    outlook = sunny
-#    |   humidity <= 75: yes (2.0)
-#    |   humidity > 75: no (3.0)
-#    outlook = overcast: yes (4.0)
-#    outlook = rainy
-#    |   windy = TRUE: no (2.0)
-#    |   windy = FALSE: yes (3.0)
+#      outlook = sunny
+#      |   humidity <= 75: yes (2.0)
+#      |   humidity > 75: no (3.0)
+#      outlook = overcast: yes (4.0)
+#      outlook = rainy
+#      |   windy = TRUE: no (2.0)
+#      |   windy = FALSE: yes (3.0)
 #
 # From the above, we see that `eg0` found that `outlook` has the best ranges
 # for splitting the data, after which other things were found useful lower in the
@@ -420,7 +420,19 @@ zips() { # make a convenient download
 	 2> /dev/null
     )
 }
-docs() {
+sh2md() {
+    for f1 in ninja/ninja.rc; do
+        f2 = "$Here/${f1}.md"
+        if [ "$f1" -nt "$f2" ]; then
+            (cat "$Here/etc/header.html"
+             gawk -f "$Here/etc/sh2md.awk" "$f1"
+             cat "$Here/etc/footer.html"
+            ) >  "$f2"
+            git add "$f2"
+        fi
+    done
+}
+py2md() {
     grep -l "____" *.py |
         while read p; do
             if [ "${p}" -nt "${p}.md" ]; then
@@ -431,6 +443,7 @@ docs() {
             
         done                
 }
+
 ninjarc() { # pretties
     if  [ "ninja.rc" -nt "ninjarc.md" ]; then
     (cat <<-'EOF'  
