@@ -97,7 +97,7 @@ ________
 #
 # ## Inside Ninja.rc
 
-# ### TIP0: At Top
+# ###  At Top
 
 # - know your seed (so you can reproduce 'random' runs)
 # - start with examples of how to call this code
@@ -108,7 +108,79 @@ Seed=1
 eg0() {
     j4810 data/weather.arff
 }
+
 #<
+# `eg0` produces this output:
+#
+#      Options: -C 0.25 -M 2
+#
+#      J48 pruned tree
+#      ------------------
+#
+#      outlook = sunny
+#      |   humidity <= 75: yes (2.0)
+#      |   humidity > 75: no (3.0)
+#      outlook = overcast: yes (4.0)
+#      outlook = rainy
+#      |   windy = TRUE: no (2.0)
+#      |   windy = FALSE: yes (3.0)
+#
+#      Number of Leaves  : 	5
+#
+#      Size of the tree : 	8
+#
+#
+#      Time taken to build model: 0.02 seconds
+#      Time taken to test model on training data: 0 seconds
+#
+#      === Error on training data ===
+#
+#      Correctly Classified Instances          14              100      %
+#      Incorrectly Classified Instances         0                0      %
+#      Kappa statistic                          1
+#      Mean absolute error                      0
+#      Root mean squared error                  0
+#      Relative absolute error                  0      %
+#      Root relative squared error              0      %
+#      Total Number of Instances               14
+#
+#      === Detailed Accuracy By Class ===
+#
+#                     TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+#                       1         0          1         1         1          1        yes
+#                       1         0          1         1         1          1        no
+#      Weighted Avg.    1         0          1         1         1          1
+#
+#      === Confusion Matrix ===
+#
+#       a b   <-- classified as
+#       9 0 | a = yes
+#       0 5 | b = no
+#
+#      === Stratified cross-validation ===
+#
+#      Correctly Classified Instances           9               64.2857 %
+#      Incorrectly Classified Instances         5               35.7143 %
+#      Kappa statistic                          0.186
+#      Mean absolute error                      0.2857
+#      Root mean squared error                  0.4818
+#      Relative absolute error                 60      %
+#      Root relative squared error             97.6586 %
+#      Total Number of Instances               14
+#
+#      === Detailed Accuracy By Class ===
+#
+#                     TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+#                       0.778     0.6        0.7       0.778     0.737      0.789    yes
+#                       0.4       0.222      0.5       0.4       0.444      0.789    no
+#      Weighted Avg.    0.643     0.465      0.629     0.643     0.632      0.789
+#
+#      === Confusion Matrix ===
+#
+#       a b   <-- classified as
+#       7 2 | a = yes
+#       3 2 | b = no
+# 
 #
 # To understand the output of `eg0`, we need some thoery.
 #
