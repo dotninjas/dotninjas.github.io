@@ -564,8 +564,6 @@ sh2md() {
     for f0 in ninja.rc; do
         f1="$Here/$f0"
         f2="${f1}.md"
-        echo $f1
-        echo $f2
         if [ "$f1" -nt "$f2" ]; then
             echo "making $f2 ..."
             (cat "$Here/etc/header.md"

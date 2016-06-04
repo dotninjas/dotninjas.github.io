@@ -61,6 +61,60 @@ __________________________________________________________
 
 ## Inside Ninja.rc
 
+To understand `ninja.rc`, fire up the shell and type
+
+       $Weka -jar weka.jar &
+
+If that crashes, then try adjusting the amount of memory given to `$Weka` by
+editing the number after `-Xmx`   in `ninja.rc` that says `Weka="$(which java) -Xmx1024M -cp $Here/weka.jar"`.
+
+If that works, you should see:
+
+![chooise](../img/wekachooser.png)
+
+If you hit the `Explorer` button, you'll lang in the `Preprocess` tab where you should `Open file..` and load,
+say, `data/weather.arff`:
+
+![chooise](../img/wekaweather.png)
+
+Here, you have loaded a data file of the following form:
+
+     @relation weather
+     
+     @attribute outlook {sunny, overcast, rainy}
+     @attribute temperature real
+     @attribute humidity real
+     @attribute windy {TRUE, FALSE}
+     @attribute play {yes, no}
+     
+     @data
+     sunny,85,85,FALSE,no
+     sunny,80,90,TRUE,no
+     overcast,83,86,FALSE,yes
+     rainy,70,96,FALSE,yes
+     rainy,68,80,FALSE,yes
+     rainy,65,70,TRUE,no
+     overcast,64,65,TRUE,yes
+     sunny,72,95,FALSE,no
+     sunny,69,70,FALSE,yes
+     rainy,75,80,FALSE,yes
+     sunny,75,70,TRUE,yes
+     overcast,72,90,TRUE,yes
+     overcast,81,75,FALSE,yes
+     rainy,71,91,TRUE,no
+
+
+After that, if you go to the `Classify` tab and `Choose` the select `trees/J48` then hit the `Start` button, you
+should see :
+
+ ![chooise](../img/wekatree1.png)
+
+You've now learned a decision tree that predicts for when to play golf
+
+Pretty GUIs are all very well but it is best to understand the mechanisms inside the GUI, especially when
+exploring new methods for data mining. So the rest of this file shows ways to pull out the WEKA functionality into
+may small scripts that allow for extensive experimentation and extended analysis of data.
+
 ###  At Top
 
 - know your seed (so you can reproduce 'random' runs)
@@ -76,100 +130,17 @@ eg0() {
 
 ```
 
-`eg0` produces the following output.
+`eg0` produces the same output as the GUI Weka, but dumps it to the screen.
 The line `weka.classifiers.trees.J48 -C 0.25 -M 2` is important--
 but we'll get back to that later.
-
-     === Run information ===
-     
-     Scheme:       weka.classifiers.trees.J48 -C 0.25 -M 2
-     Relation:     weather
-     Instances:    14
-     Attributes:   5
-                   outlook
-                   temperature
-                   humidity
-                   windy
-                   play
-     Test mode:    10-fold cross-validation
-     
-     === Classifier model (full training set) ===
-
-     J48 pruned tree
-     ------------------
-
-     outlook = sunny
-     |   humidity <= 75: yes (2.0)
-     |   humidity > 75: no (3.0)
-     outlook = overcast: yes (4.0)
-     outlook = rainy
-     |   windy = TRUE: no (2.0)
-     |   windy = FALSE: yes (3.0)
-
-     Number of Leaves  : 	5
-
-     Size of the tree : 	8
-
-
-     Time taken to build model: 0.02 seconds
-     Time taken to test model on training data: 0 seconds
-
-     === Error on training data ===
-
-     Correctly Classified Instances          14              100      %
-     Incorrectly Classified Instances         0                0      %
-     Kappa statistic                          1
-     Mean absolute error                      0
-     Root mean squared error                  0
-     Relative absolute error                  0      %
-     Root relative squared error              0      %
-     Total Number of Instances               14
-
-     === Detailed Accuracy By Class ===
-
-                    TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                      1         0          1         1         1          1        yes
-                      1         0          1         1         1          1        no
-     Weighted Avg.    1         0          1         1         1          1
-
-     === Confusion Matrix ===
-
-      a b   <-- classified as
-      9 0 | a = yes
-      0 5 | b = no
-
-     === Stratified cross-validation ===
-
-     Correctly Classified Instances           9               64.2857 %
-     Incorrectly Classified Instances         5               35.7143 %
-     Kappa statistic                          0.186
-     Mean absolute error                      0.2857
-     Root mean squared error                  0.4818
-     Relative absolute error                 60      %
-     Root relative squared error             97.6586 %
-     Total Number of Instances               14
-
-     === Detailed Accuracy By Class ===
-
-                    TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                      0.778     0.6        0.7       0.778     0.737      0.789    yes
-                      0.4       0.222      0.5       0.4       0.444      0.789    no
-     Weighted Avg.    0.643     0.465      0.629     0.643     0.632      0.789
-
-     === Confusion Matrix ===
-
-      a b   <-- classified as
-      7 2 | a = yes
-      3 2 | b = no
-
-
-To understand the output of `eg0`, we need some thoery.
+To understand that output of `eg0`, we need some thoery.
 
 ### Command-line Weka
 
-The line `weka.classifiers.trees.J48 -C 0.25 -M 2` is a magic string
-which, if added as a Bash function, can be used for command-line method to generate
-the above result.
+At the start of the weather.arff decision tree output is the line
+`weka.classifiers.trees.J48 -C 0.25 -M 2`. This is a magic string which, if
+added as a Bash function, can be used for command-line method to generate the
+above result.
 
       j4810() {
            Weka="java -Xmx1024M -cp weka.jar"
@@ -576,8 +547,6 @@ sh2md() {
     for f0 in ninja.rc; do
         f1="$Here/$f0"
         f2="${f1}.md"
-        echo $f1
-        echo $f2
         if [ "$f1" -nt "$f2" ]; then
             echo "making $f2 ..."
             (cat "$Here/etc/header.md"
