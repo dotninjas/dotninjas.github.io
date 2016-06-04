@@ -98,9 +98,24 @@ eg0() {
 }
 
 #<
-# `eg0` produces this output:
+# `eg0` produces the following output.
+# The line `weka.classifiers.trees.J48 -C 0.25 -M 2` is important--
+# but we'll get back to that later.
 #
-#      Options: -C 0.25 -M 2
+#      === Run information ===
+#      
+#      Scheme:       weka.classifiers.trees.J48 -C 0.25 -M 2
+#      Relation:     weather
+#      Instances:    14
+#      Attributes:   5
+#                    outlook
+#                    temperature
+#                    humidity
+#                    windy
+#                    play
+#      Test mode:    10-fold cross-validation
+#      
+#      === Classifier model (full training set) ===
 #
 #      J48 pruned tree
 #      ------------------
@@ -172,13 +187,25 @@ eg0() {
 #
 # To understand the output of `eg0`, we need some thoery.
 #
+# ### Command-line Weka
+#
+# The line `weka.classifiers.trees.J48 -C 0.25 -M 2` is a magic string
+# which, if added as a Bash function, can be used for command-line method to generate
+# the above result.
+#
+#       j4810() {
+#            Weka="java -Xmx1024M -cp weka.jar"
+#            local learner=weka.classifiers.trees.J48
+#            $Weka $learner	-C 0.25 -M 2 -i -t $1 
+#       }
+#
 # ### Decision Tree Learning
 #
-# `eg0` calls decision tree learner. Such learners work as follows.  When all
-# examples offer the same classification, those examples are said to be
-# _pure_. But when the classifications are different, the examples are said to
-# be _mixed_. The goal of decision tree learners is to find subsets of that data
-# that are less mixed and more pure.
+# `eg0` calls the decision tree learner `j48` learner. Such learners work as
+# follows.  When all examples offer the same classification, those examples are
+# said to be _pure_. But when the classifications are different, the examples
+# are said to be _mixed_. The goal of decision tree learners is to find subsets
+# of that data that are less mixed and more pure.
 #
 # Two measures of _mixed_-ness are entropy and variance which are used for
 # symbolic and numeric classes, respectively. Variance is a measure of how much
@@ -242,6 +269,41 @@ eg0() {
 # - See if you can see why `eg0` split the data
 #   on `outlook`. Hint: try sorting instead on `windy`.
 #
+#
+# ### Another Learner Scheme
+#
+# Decision tree learning is a "divide and conqueor" method. Another approach is
+# "cover and differentiate". This approach 
+#
+# - finds some conjunction that predicts for the most frequent class;
+# - prints that conjunction;
+# - removes all the examples that match (i.e. are "covered") by that conjunction;
+# - then recurses on the remaining examples.
+#
+# In WEKA this is accomplished by the `jrip` learner:
+#
+#     jrip10 () {
+#        local learner=weka.classifiers.rules.JRip;
+#        $Weka $learner -F 3 -N 2.0 -O 2 -S 1 -t $1
+#     }
+#
+# which has the following output:
+#
+#     (rfc >= 49) and (moa >=  3)       => bug=true 
+#     (wmc >= 9)  and (ce >=   6) and
+#         (max_cc >= 8) and (npm >= 10) => bug=true 
+#     true => bug=false
+#
+# which can be written into (say) a "C" program as some of-then rules:
+#
+#     if      (rfc >= 49) and (moa >=  3) then bug=true 
+#     else if (wmc >= 9)  and (ce >=   6) and
+#             (max_cc >= 8) and (npm >= 10) then  bug=true 
+#     else    bug=false
+#
+# Each of the above tests is one of the covering rules and each
+# subsequent test holds in the _negation_ of the tests before it.
+#
 # ### Cross-Validation
 #
 # Reading the output of `eg0`, we see that it called the learners multiple times.
@@ -286,14 +348,13 @@ eg0() {
 # - PD and effort are linked. The more modules that trigger the detector, the
 #   higher the PD. However, effort also gets increases
 #
-#   This linkage can be seen in a standard receiver operator
-#   curve (ROC).  Suppose, for example, LOC> x is used as the detector (i.e. we
-#   assume large modules have more errors). LOC > x represents a family of
-#   detectors. At x=0, EVERY module is predicted to have errors. This detector
-#   has a high PD but also a high false alarm rate. At x=0, NO module is
-#   predicted to have errors. This detector has a low false alarm rate but won't
-#   detect anything at all. At 0<x<1, a set of detectors are generated as shown
-#   below:
+# This linkage can be seen in a standard receiver operator curve (ROC).
+# Suppose, for example, LOC> x is used as the detector (i.e. we assume large
+# modules have more errors). LOC > x represents a family of detectors. At x=0,
+# EVERY module is predicted to have errors. This detector has a high PD but also
+# a high false alarm rate. At x=0, NO module is predicted to have errors. This
+# detector has a low false alarm rate but won't detect anything at all. At
+# 0<x<1, a set of detectors are generated as shown below:
 #
 #          pd
 #        1 |           x  x  x                KEY:
@@ -310,17 +371,18 @@ eg0() {
 #
 #  Note that:
 #
-#  - The only way to make no mistakes (PF=0) is to do nothing
-# (PD=0)
+#  - The only way to make no mistakes (PF=0) is to do nothing (PD=0)
 #  - The only way to catch more detects is to make more
-#  mistakes (increasing PD means increasing PF).
+#    mistakes (increasing PD means increasing PF).
 #  - Our detector bends towards the "sweet spot" of
-#  <PD=1,PF=0> but does not reach it.
+#    <PD=1,PF=0> but does not reach it.
 #  - The line pf=pd on the above graph represents the "no information"
-#  line. If pf=pd then the detector is pretty useless. The better
-#  the detector, the more it rises above PF=PD towards the "sweet spot".
+#    line. If pf=pd then the detector is pretty useless. The better
+#    the detector, the more it rises above PF=PD towards the "sweet spot".
+#
+# ### From Output to Meaning
+# 
 #>
-
 eg1() {
     echo 
     j48 data/weather.arff data/weather.arff
@@ -682,6 +744,14 @@ bnet10(){
 	$Weka $learner -i -t $1 -D \
 	    -Q weka.classifiers.bayes.net.search.local.K2 -- -P 2 -S BAYES \
 	    -E weka.classifiers.bayes.net.estimate.SimpleEstimator -- -A 0.5 
+}
+jrip() {
+        local learner=weka.classifiers.rules.JRip
+        $Weka $learner -F 3 -N 2.0 -O 2 -S 1 -t $1 -T $2
+}
+jrip10() {
+        local learner=weka.classifiers.rules.JRip
+        $Weka $learner -F 3 -N 2.0 -O 2 -S 1 -t $1 
 }
 nb() {
  	local learner=weka.classifiers.bayes.NaiveBayes
