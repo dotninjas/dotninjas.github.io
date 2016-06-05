@@ -26,7 +26,7 @@ from __future__ import division,print_function
 import sys,math
 sys.dont_write_bytecode=True
 
-from tricks import *
+from tricks import * 
 Demos=[]
 
 def isMissing(x):

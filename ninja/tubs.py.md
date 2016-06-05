@@ -47,8 +47,10 @@ regenerated. You have been warned.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 --->
 
+<img src=""http://fitefuaite.com/wp-content/uploads/2016/02/gibb.jpg">
 
-<img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg">
+
+<!--- img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg" --->
 
 
 # tubs.py : tricks for storing columns of data.
@@ -77,7 +79,7 @@ from __future__ import division,print_function
 import sys,math
 sys.dont_write_bytecode=True
 
-from tricks import *
+from tricks import * 
 Demos=[]
 
 def isMissing(x):
