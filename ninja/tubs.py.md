@@ -115,7 +115,10 @@ class Col:
 
 ```
 
-`Sym`: incrementally adds and subtracts symbol counts as well the most common symbol
+
+### `Sym`
+
+Incrementally adds and subtracts symbol counts as well the most common symbol
        (the 'mode'). Can report column 'entropy'.
 ```python
 
@@ -147,7 +150,10 @@ class Sym(Col):
 
 ```
 
-`Num`: Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
+
+### `Num`
+
+Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
        'sd()' as we go.  Smallest and largest values seen are 'lo' and 'up'.  Can
        report column 'standard deviattion'.
 ```python
@@ -210,7 +216,7 @@ class Tub:
 
 ```
 ________________________________________________________________________
-# Row       
+## Row       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
  which can be stored in different tubs.  The knowledge of how to access `x`, or

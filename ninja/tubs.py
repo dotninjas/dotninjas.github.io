@@ -61,7 +61,10 @@ class Col:
     return str(kv(i.__dict__))
 
 """
-`Sym`: incrementally adds and subtracts symbol counts as well the most common symbol
+
+### `Sym`
+
+Incrementally adds and subtracts symbol counts as well the most common symbol
        (the 'mode'). Can report column 'entropy'.
 """
   
@@ -91,7 +94,10 @@ class Sym(Col):
     return tmp
 
 """
-`Num`: Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
+
+### `Num`
+
+Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
        'sd()' as we go.  Smallest and largest values seen are 'lo' and 'up'.  Can
        report column 'standard deviattion'.
 """
@@ -150,7 +156,7 @@ class Tub:
     return i
 
 """________________________________________________________________________
-# Row       
+## Row       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
  which can be stored in different tubs.  The knowledge of how to access `x`, or
