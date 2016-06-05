@@ -1,11 +1,11 @@
 <img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg">
 
 
-tubs.py : tricks for storing columns of data.
+# tubs.py : tricks for storing columns of data.
 
 (C) 2016 tim@menzies.us, MIT license
 
-# Data model:  
+## Data model:  
 
 A `Tub` is a place to store columns of data:
 
@@ -23,7 +23,8 @@ Important note:
   of the data seen in each column.
 ___________________________________________________________________________
 
-"""  
+```python
+  
 
 from __future__ import division,print_function
 import sys,math
@@ -36,13 +37,15 @@ def isMissing(x):
   "Null cells in columns contain '?'"
   return x == "?"
 
-"""________________________________________________________________________
+```
 
-# Col
+
+## Col
 
 `Col`s have two sub-classes: `Num` and `Sym`.
 
-"""
+```python
+
 
 class Col:
   def __init__(i,inits=[],get=same):
@@ -114,9 +117,10 @@ class Num(Col):
   def small(i,cohen=0.3):
     return i.sd()*cohen
 
-"""________________________________________________________________________
+```
 
-# Tub 
+
+## Tub 
 
 - When a new `Row` is added, updates column summaries.
 - When processing a `Row`,  if a cell is empty (defined by `isMissing`) then we skip over it.
@@ -126,7 +130,8 @@ class Num(Col):
   function (which defaults to `same`; i.e.  use the whole row, as is).
 
 Note that `Tub`s do not store the `rows` (that is done elsewhere, see `Tubs`, below).
-"""
+```python
+
 
 class Tub:
   def __init__(i,get = same):
@@ -143,23 +148,26 @@ class Tub:
         col += val
     return i
 
-"""________________________________________________________________________
-Row       
+```
+
+# Row       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
  which can be stored in different tubs.  The knowledge of how to access `x`, or
  `y` out of the row is given to a `Tub` when it is created (see the above
  `Tub.get` attribute).
 
-"""
+```python
+
 
 class Row:
   def __init__(i,x=None,y=None):
     i.x = x or []
     i.y = y or []
     
-"""________________________________________________________________________
-# Tubs
+```
+
+## Tubs
  
 A `Tubs` is a place to store `Row`s and summaries about those rows.
 Those summaries are stored in two `Tub`s.
@@ -172,7 +180,8 @@ Those summaries are stored in two `Tub`s.
 
 First, need accessors to _x,y_ fields:
 
-"""
+```python
+
 
 def xx(z): return z.x
 def yy(z): return z.y
@@ -197,6 +206,8 @@ class Tubs:
       return row.x[pos]
      else:
       return row.y[len(i.x.cols) - pos]
+
+```
 
 
 

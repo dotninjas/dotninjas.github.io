@@ -799,7 +799,7 @@ py2md() {
         if [ "$f1" -nt "$f2" ]; then
             echo "making $f2 ..."
             (cat "$Here/etc/header.md"
-             gawk -f "$Here/etc/sh2md.awk" "$f1"
+             gawk -f "$Here/etc/py2md.awk" "$f1"
              cat "$Here/etc/footer.md"
             ) >  "$f2"
             git add "$f2"
