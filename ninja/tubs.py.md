@@ -47,6 +47,7 @@ regenerated. You have been warned.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 --->
 
+
 <img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg">
 
 
@@ -184,7 +185,7 @@ class Num(Col):
 ```
 ________________________________________________________________________
 
-## `Tub` 
+## `Tub`   
 
 - When a new `Row` is added, updates column summaries.
 - When processing a `Row`,  if a cell is empty (defined by `isMissing`) then we skip over it.
@@ -276,6 +277,9 @@ class Tubs:
 
 
 ________
+
+<img align=right width=400
+src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/License_icon-mit-88x31-2.svg/2000px-License_icon-mit-88x31-2.svg.png">
 
 ## Copyright
 

@@ -126,7 +126,7 @@ class Num(Col):
 
 """________________________________________________________________________
 
-## `Tub` 
+## `Tub`   
 
 - When a new `Row` is added, updates column summaries.
 - When processing a `Row`,  if a cell is empty (defined by `isMissing`) then we skip over it.
