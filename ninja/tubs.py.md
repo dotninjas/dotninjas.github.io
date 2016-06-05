@@ -60,7 +60,7 @@ regenerated. You have been warned.
 A `Tub` is a place to store columns of data:
 
 - Columns contain either symbols or numbers.  
-_ Columns have headers called `Sym` and `Num` and store summaires about
+- Columns have headers called `Sym` and `Num` and store summaires about
   symbolic or numeric columns, respectively.
 - When a `Row` is dumped into a `Tub`, the column headers are automatically
   updated with information from that row
