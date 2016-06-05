@@ -769,6 +769,7 @@ ok() { # 3c) need a place for all the stuff that makes system usable
     dirs;
     ninjarc
     sh2md
+    py2md
     zips   
 }
 
@@ -797,16 +798,30 @@ sh2md() {
     done
 }
 py2md() {
-    grep -l "____" *.py |
-        while read p; do
-            if [ "${p}" -nt "${p}.md" ]; then
-                awk -f "$Here"/etc/py2md.awj $p > "$Tmp"/$$.md
-                "$Here"/etc/render "$Here" "$Here" tiny.cc/dotninja "$Tmp"/$$.md > ${p}.md
-                git add ${p}.md
-            fi
-            
-        done                
+    for f0 in tubs.py; do
+        f1="$Here/$f0"
+        f2="${f1}.md"
+        if [ "$f1" -nt "$f2" ]; then
+            echo "making $f2 ..."
+            (cat "$Here/etc/header.md"
+             gawk -f "$Here/etc/sh2md.awk" "$f1"
+             cat "$Here/etc/footer.md"
+            ) >  "$f2"
+            git add "$f2"
+        fi
+    done
 }
+# py2md() {
+#     grep -l "____" *.py |
+#         while read p; do
+#             if [ "${p}" -nt "${p}.md" ]; then
+#                 awk -f "$Here"/etc/py2md.awj $p > "$Tmp"/$$.md
+#                 "$Here"/etc/render "$Here" "$Here" tiny.cc/dotninja "$Tmp"/$$.md > ${p}.md
+#                 git add ${p}.md
+#             fi
+            
+#         done                
+# }
 
 ninjarc() { # pretties
     if  [ "ninja.rc" -nt "ninjarc.md" ]; then

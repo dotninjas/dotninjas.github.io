@@ -1,10 +1,11 @@
-"""
+<img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg">
 
-# tubs.py : tricks for storing columns of data.
+
+tubs.py : tricks for storing columns of data.
 
 (C) 2016 tim@menzies.us, MIT license
 
-## Data model:  
+# Data model:  
 
 A `Tub` is a place to store columns of data:
 
@@ -37,7 +38,7 @@ def isMissing(x):
 
 """________________________________________________________________________
 
-## Col
+# Col
 
 `Col`s have two sub-classes: `Num` and `Sym`.
 
@@ -115,7 +116,7 @@ class Num(Col):
 
 """________________________________________________________________________
 
-## Tub 
+# Tub 
 
 - When a new `Row` is added, updates column summaries.
 - When processing a `Row`,  if a cell is empty (defined by `isMissing`) then we skip over it.
@@ -143,7 +144,7 @@ class Tub:
     return i
 
 """________________________________________________________________________
-# Row       
+Row       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
  which can be stored in different tubs.  The knowledge of how to access `x`, or
@@ -158,7 +159,7 @@ class Row:
     i.y = y or []
     
 """________________________________________________________________________
-## Tubs
+# Tubs
  
 A `Tubs` is a place to store `Row`s and summaries about those rows.
 Those summaries are stored in two `Tub`s.
@@ -197,3 +198,28 @@ class Tubs:
      else:
       return row.y[len(i.x.cols) - pos]
 
+
+
+________
+
+## Copyright
+
+Copyright (c) 2016 Tim Menzies tim@menzies.us
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
