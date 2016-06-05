@@ -19,9 +19,8 @@ Important note:
 - While `Row`s contain all the raw data, columns only contain a _summary_
   of the data seen in each column.
 
-___________________________________________________________________________
 
-"""  
+"""
 
 from __future__ import division,print_function
 import sys,math
@@ -34,14 +33,13 @@ def isMissing(x):
   "Null cells in columns contain '?'"
   return x == "?"
 
-"""________________________________________________________________________
+"""
 
 ## `Col`
 
 `Col`s have two sub-classes: `Num` and `Sym`.
 
 """
-
 class Col:
   def __init__(i,inits=[],get=same):
     i.reset()
@@ -57,15 +55,14 @@ class Col:
     return i
   def __repr__(i):
     return str(kv(i.__dict__))
-
 """
 
 ### `Sym`
 
 Incrementally adds and subtracts symbol counts as well the most common symbol
        (the 'mode'). Can report column 'entropy'.
-"""
-  
+
+"""  
 class Sym(Col):
   def reset(i):
     i.counts, i.most, i.mode, i.n = {},0,None,0
@@ -90,7 +87,6 @@ class Sym(Col):
       if p:
         tmp -= p*math.log(p,2)
     return tmp
-
 """
 
 ### `Num`
@@ -98,8 +94,8 @@ class Sym(Col):
 Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
        'sd()' as we go.  Smallest and largest values seen are 'lo' and 'up'.  Can
        report column 'standard deviattion'.
+
 """
-  
 class Num(Col):
   def reset(i):
     i.mu,i.n,i.m2,i.up,i.lo = 0,0,0,-10e32,10e32
@@ -123,8 +119,7 @@ class Num(Col):
     return 0 if i.n <= 2 else (i.m2/(i.n - 1))**0.5
   def small(i,cohen=0.3):
     return i.sd()*cohen
-
-"""________________________________________________________________________
+"""
 
 ## `Tub`   
 
@@ -136,8 +131,8 @@ class Num(Col):
   function (which defaults to `same`; i.e.  use the whole row, as is).
 
 Note that `Tub`s do not store the `rows` (that is done elsewhere, see `Tubs`, below).
-"""
 
+"""
 class Tub:
   def __init__(i,get = same):
     i.cols = {}  # i.cols[i] is a summary of column i.
@@ -152,8 +147,8 @@ class Tub:
           col.pos = j
         col += val
     return i
+"""
 
-"""________________________________________________________________________
 ## `Row`       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
@@ -162,13 +157,12 @@ A `Row` is something that can be divided into into `x,y` columns and each of
  `Tub.get` attribute).
 
 """
-
 class Row:
   def __init__(i,x=None,y=None):
     i.x = x or []
-    i.y = y or []
-    
-"""________________________________________________________________________
+    i.y = y or [] 
+"""
+
 ## `Tubs`
  
 A `Tubs` is a place to store `Row`s and summaries about those rows.
@@ -183,7 +177,6 @@ Those summaries are stored in two `Tub`s.
 First, need accessors to _x,y_ fields:
 
 """
-
 def xx(z): return z.x
 def yy(z): return z.y
 

@@ -5,9 +5,9 @@ gsub(/^"""/,"") {
         Pre=0
     else {
         if (In) 
-            print "```python\n" $0
+            print "```python" $0
         else 
-            print "```\n" $0
+            print "```" $0
     }
     next
 }
