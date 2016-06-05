@@ -111,7 +111,7 @@ class Col:
 ### `Sym`
 
 Incrementally adds and subtracts symbol counts as well the most common symbol
-       (the 'mode'). Can report column 'entropy'.
+       (the `mode`). Can report column `entropy`.
 
 ```python  
 class Sym(Col):
@@ -142,9 +142,9 @@ class Sym(Col):
 
 ### `Num`
 
-Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
-       'sd()' as we go.  Smallest and largest values seen are 'lo' and 'up'.  Can
-       report column 'standard deviattion'.
+Incrementally adds and subtracts numners to a Gaussian, tracking `mu` and
+       `sd()` as we go.  Smallest and largest values seen are 'lo' and `up`.  Can
+       report column `standard deviation`.
 
 ```python
 class Num(Col):
