@@ -111,10 +111,15 @@ class Col:
     return i
   def __repr__(i):
     return str(kv(i.__dict__))
+
+```
+
+`Sym`: incrementally adds and subtracts symbol counts as well the most common symbol
+       (the 'mode'). Can report column 'entropy'.
+```python
+
   
 class Sym(Col):
-  """Incrementally adds and subtracts symbol counts as well the most common symbol
-     (the 'mode'). Can report column 'entropy'."""
   def reset(i):
     i.counts, i.most, i.mode, i.n = {},0,None,0
   def add(i,x):
@@ -138,11 +143,16 @@ class Sym(Col):
       if p:
         tmp -= p*math.log(p,2)
     return tmp
-      
+
+```
+
+`Num`: Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
+       'sd()' as we go.  Smallest and largest values seen are 'lo' and 'up'.  Can
+       report column 'standard deviattion'.
+```python
+
+  
 class Num(Col):
-  """Incrementally adds and subtracts numners to a Gaussian, tracking 'mu' and
-     'sd()' as we go.  Smallest and largest values seen are 'lo' and 'up'.  Can
-     report column 'standard deviattion'."""
   def reset(i):
     i.mu,i.n,i.m2,i.up,i.lo = 0,0,0,-10e32,10e32
   def add(i,x):
