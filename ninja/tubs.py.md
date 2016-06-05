@@ -278,7 +278,7 @@ class Tubs:
 
 ________
 
-<img align=right width=400
+<img align=right width=300
 src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/License_icon-mit-88x31-2.svg/2000px-License_icon-mit-88x31-2.svg.png">
 
 ## Copyright
