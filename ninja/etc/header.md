@@ -47,7 +47,7 @@ regenerated. You have been warned.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 --->
 
-<img src=""http://fitefuaite.com/wp-content/uploads/2016/02/gibb.jpg">
+<img src="http://fitefuaite.com/wp-content/uploads/2016/02/gibb.jpg">
 
 
 <!--- img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg" --->
