@@ -90,7 +90,7 @@ def isMissing(x):
 ```
 ________________________________________________________________________
 
-## Col
+## `Col`
 
 `Col`s have two sub-classes: `Num` and `Sym`.
 
@@ -186,7 +186,7 @@ class Num(Col):
 ```
 ________________________________________________________________________
 
-## Tub 
+## `Tub` 
 
 - When a new `Row` is added, updates column summaries.
 - When processing a `Row`,  if a cell is empty (defined by `isMissing`) then we skip over it.
@@ -216,7 +216,7 @@ class Tub:
 
 ```
 ________________________________________________________________________
-## Row       
+## `Row`       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
  which can be stored in different tubs.  The knowledge of how to access `x`, or
@@ -233,7 +233,7 @@ class Row:
     
 ```
 ________________________________________________________________________
-## Tubs
+## `Tubs`
  
 A `Tubs` is a place to store `Row`s and summaries about those rows.
 Those summaries are stored in two `Tub`s.
