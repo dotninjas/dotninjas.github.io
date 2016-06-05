@@ -70,6 +70,7 @@ Important note:
 
 - While `Row`s contain all the raw data, columns only contain a _summary_
   of the data seen in each column.
+
 ___________________________________________________________________________
 
 ```python
@@ -87,7 +88,7 @@ def isMissing(x):
   return x == "?"
 
 ```
-
+________________________________________________________________________
 
 ## Col
 
@@ -177,7 +178,7 @@ class Num(Col):
     return i.sd()*cohen
 
 ```
-
+________________________________________________________________________
 
 ## Tub 
 
@@ -208,7 +209,7 @@ class Tub:
     return i
 
 ```
-
+________________________________________________________________________
 # Row       
 
 A `Row` is something that can be divided into into `x,y` columns and each of
@@ -225,7 +226,7 @@ class Row:
     i.y = y or []
     
 ```
-
+________________________________________________________________________
 ## Tubs
  
 A `Tubs` is a place to store `Row`s and summaries about those rows.

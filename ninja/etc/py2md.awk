@@ -7,7 +7,7 @@ gsub(/^"""/,"") {
         if (In) 
             print "```python\n" $0
         else 
-            print "```\n"
+            print "```\n" $0
     }
     next
 }

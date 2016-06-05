@@ -20,6 +20,7 @@ Important note:
 
 - While `Row`s contain all the raw data, columns only contain a _summary_
   of the data seen in each column.
+
 ___________________________________________________________________________
 
 """  
