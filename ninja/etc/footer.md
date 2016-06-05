@@ -2,6 +2,9 @@
 
 ________
 
+<img align=right width=400
+src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/License_icon-mit-88x31-2.svg/2000px-License_icon-mit-88x31-2.svg.png">
+
 ## Copyright
 
 Copyright (c) 2016 Tim Menzies tim@menzies.us
