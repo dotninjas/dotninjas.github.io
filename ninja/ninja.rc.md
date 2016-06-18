@@ -1,3 +1,55 @@
+<!---
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+BEWARE! BEWARE! EDIT NOT THIS FILE (or all your work will DIE!!).
+                                          .""--.._
+                                           []      `'--.._
+                                           ||__           `'-,
+                                         `)||_ ```'--..       \
+                     _                    /|//}        ``--._  |
+                  .'` `'.                /////}              `\/
+                 /  .""".\              //{///
+                /  /_  _`\\            // `||
+                | |(_)(_)||          _//   ||
+                | |  /\  )|        _///\   ||
+                | |L====J |       / |/ |   ||
+               /  /'-..-' /    .'`  \  |   ||
+              /   |  :: | |_.-`      |  \  ||
+             /|   `\-::.| |          \   | ||
+           /` `|   /    | |          |   / ||
+         |`    \   |    / /          \  |  ||
+        |       `\_|    |/      ,.__. \ |  ||
+        /                     /`    `\ ||  ||
+       |           .         /        \||  ||
+       |                     |         |/  ||
+       /         /           |         (   ||
+      /          .           /          )  ||
+     |            \          |             ||
+    /             |          /             ||
+   |\            /          |              ||
+   \ `-._       |           /              ||
+    \ ,//`\    /`           |              ||
+     ///\  \  |             \              ||
+    |||| ) |__/             |              ||
+    |||| `.(                |              ||
+    `\\` /`                 /              ||
+       /`                   /              ||
+ jgs  /                     |              ||
+     |                      \              ||
+    /                        |             ||
+  /`                          \            ||
+/`                            |            ||
+`-.___,-.      .-.        ___,'            ||
+         `---'`   `'----'`
+This file is AUTO-GENERATED from some Markdown
+source from some other file. Any edits
+made to THIS file will be LOST when this file is
+regenerated. You have been warned.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+--->
+
+<!-- img src="http://fitefuaite.com/wp-content/uploads/2016/02/gibb.jpg" --->
+<!--- img src="http://cdn.tristro.net/catalog/878/full/t92144-jigsaw-half-20p.jpg" -->
+
 <img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg">
 
 
@@ -893,6 +945,30 @@ alias .3='cd ../../../'
 alias .4='cd ../../../../'
 alias .5='cd ../../../../..'
 
+cat <<'EOF'> ~/.lessfilter
+#!/bin/sh
+case "$1" in
+    *.awk|*.groff|*.java|*.js|*.m4|*.php|*.pl|*.pm|*.pod|*.sh|\
+    *.ad[asb]|*.asm|*.inc|*.[ch]|*.[ch]pp|*.[ch]xx|*.cc|*.hh|\
+    *.lsp|*.l|*.pas|*.p|*.xml|*.xps|*.xsl|*.axp|*.ppd|*.pov|\
+    *.diff|*.patch|*.py|*.rb|*.sql|*.ebuild|*.eclass)
+        pygmentize -f 256 "$1";;
+    .bashrc|.bash_aliases|.bash_environment)
+        pygmentize -f 256 -l sh "$1"
+        ;;
+    *)
+        grep "#\!/bin/bash" "$1" > /dev/null
+        if [ "$?" -eq "0" ]; then
+            pygmentize -f 256 -l sh "$1"
+        else
+            exit 1
+        fi
+esac
+exit 0
+EOF
+export LESS='-R'
+export LESSOPEN='|~/.lessfilter %s'
+chmod u+x ~/.lessfilter
 ```
 
 git tricks
@@ -1117,6 +1193,9 @@ ok
 
 
 ________
+
+<img align=right width=300
+src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/License_icon-mit-88x31-2.svg/2000px-License_icon-mit-88x31-2.svg.png">
 
 ## Copyright
 
