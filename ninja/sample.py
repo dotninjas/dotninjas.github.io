@@ -99,7 +99,7 @@ class Sample:
       i.all[ int(r() * now) ]= x
     return i
 
-def _sample1(  repeats=20, samples=512, m=10, cache=512):
+def _sample1(  repeats=1000, samples=512, m=100, cache=512):
   #s=Sample()
   aas = [1,2,3,4,5]
   bbs = [0.5,1,1.5,5]
@@ -108,32 +108,30 @@ def _sample1(  repeats=20, samples=512, m=10, cache=512):
     b  = any(bbs)
     s1 = [weibul(a,b) for _ in xrange(samples)]
     s2 = [weibul(a,b) for _ in xrange(samples)]
-    s3 = [weibul(a,b) for _ in xrange(samples)]
     
-    s1 = mofn( s1,                    m)[1:]
-    s2 = mofn( s2,                    m)[1:]  
-    s3 = mofn( Sample(s3,cache).all,  m)[1:]
-
-    sum1,sum2,sum3  = sum(s1), sum(s2), sum(s3)
+    sum1,sum2  = sum(s1), sum(s2)
     s1 = [x/sum1 for x in s1]
     s2 = [x/sum2 for x in s2]
-    s3 = [x/sum3 for x in s3]
     
+    s3 = mofn( Sample(s2,cache).all,  m)
+    s1 = mofn( s1,                    m)
+    s2 = mofn( s2,                    m)
+        
     diff1 = r3s([abs(x-y) for x,y in zip(s1,s2)])
     diff2 = r3s([abs(x-y) for x,y in zip(s1,s3)])
     yield sum(diff1) / len(s2),  sum(diff2) / len(s3)
 
 def _sample():
   rseed(10293082)
-  p = lambda x: round(100*x,2)
-  print("")
-  for s in [25,50,100,200,400,800]:
+  p = lambda x: round(x,4)
+  print("cache x=twof y=1f1cache z=y/x")
+  for c in [32,64,128,256,512]:
     one,two=[],[]
-    for  x,y in _sample1(cache=s,m=6):
+    for  x,y in _sample1(cache=c,m=6):
       one += [x]
       two += [y]
     n1 = p(sum(one) / len(one))
     n2 = p(sum(two) / len(two))
-    print s, n1, n2, r2(n2/n1)
+    print c, n1, n2, r2(n2/n1)
 
 _sample()
