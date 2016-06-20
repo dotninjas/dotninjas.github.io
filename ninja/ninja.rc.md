@@ -817,7 +817,7 @@ ok() { # 3c) need a place for all the stuff that makes system usable
     ninjarc
     sh2md
     py2md
-    zips   
+    #zips   
 }
 
 dirs() { # 3d) create all the required dirs
