@@ -62,6 +62,28 @@ def thing(x):
     except ValueError:
       return x
 
+# __________________________________________________
+# Maths tricks
+
+def normalDiff(mu1,sd1,n1,mu2,sd2,n2): 
+    delta = mu2 - mu1
+    if s1+s2:
+      delta =  delta/((sd1/n1 + sd2/n2)**0.5)
+    return delta
+
+def lstDiff(lst1,lst2):
+ """Checks if two means are different, tempered
+     by the sample size of 'y' and 'z'"""
+    tmp1 = tmp2 = 0
+    n1,n2 = len(lst1), len(lst2)
+    mu1   = sum(lst1) / n1
+    mu2   = sum(lst2) / n2
+    tmp1  = sum( (y1 - mu1)**2 for y1 in lst1 )
+    tmp2  = sum( (y2 - mu2)**2 for y2 in lst2 )
+    sd1   = ( tmp1 / (n1 - 1) )**0.5
+    sd2   = ( tmp2 / (n2 - 1) )**0.5
+    return normalDiff(mu1,sd1,n1,mu2,sd2,n2)
+  
 # ___________________________________________________
 # Meta tricks (one day, this will make sense)
 

@@ -11,6 +11,7 @@ ________
 
 ```bash
 #!/usr/bin/env bash
+# -*- sh -*-
 # For pretty version of this code, see
 # https://github.com/REU-SOS/SOS/blob/master/src/ninja/ninjarc.md
 ########################################################
@@ -932,6 +933,30 @@ alias .3='cd ../../../'
 alias .4='cd ../../../../'
 alias .5='cd ../../../../..'
 
+cat <<'EOF'> ~/.lessfilter
+#!/bin/sh
+case "$1" in
+    *.awk|*.groff|*.java|*.js|*.m4|*.php|*.pl|*.pm|*.pod|*.sh|\
+    *.ad[asb]|*.asm|*.inc|*.[ch]|*.[ch]pp|*.[ch]xx|*.cc|*.hh|\
+    *.lsp|*.l|*.pas|*.p|*.xml|*.xps|*.xsl|*.axp|*.ppd|*.pov|\
+    *.diff|*.patch|*.py|*.rb|*.sql|*.ebuild|*.eclass)
+        pygmentize -f 256 "$1";;
+    .bashrc|.bash_aliases|.bash_environment)
+        pygmentize -f 256 -l sh "$1"
+        ;;
+    *)
+        grep "#\!/bin/bash" "$1" > /dev/null
+        if [ "$?" -eq "0" ]; then
+            pygmentize -f 256 -l sh "$1"
+        else
+            exit 1
+        fi
+esac
+exit 0
+EOF
+export LESS='-R'
+export LESSOPEN='|~/.lessfilter %s'
+chmod u+x ~/.lessfilter
 #<
 # git tricks
 #>
