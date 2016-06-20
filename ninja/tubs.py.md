@@ -80,7 +80,7 @@ import sys,math
 sys.dont_write_bytecode=True
 
 from tricks import * 
-Demos=[]
+
 
 def isMissing(x):
   "Null cells in columns contain '?'"
@@ -172,7 +172,6 @@ class Num(Thing):
     return 0 if i.n <= 2 else (i.m2/(i.n - 1))**0.5
   def small(i,cohen=0.3):
     return i.sd()*cohen
-  def same(i,j)
   
 ```
 
@@ -260,6 +259,8 @@ class Tubs:
      else:
       return row.y[len(i.x.cols) - pos]
 
+
+if __name__=='__main__': demo("tubDemo")
 ```
 
 
