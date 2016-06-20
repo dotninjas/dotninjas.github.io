@@ -17,22 +17,22 @@ class o:
   
 the = o(SAMPLE = o(max=256))
 
-def chi2(d1,d2):
-  d3,tot1,tot2,rr,c = {},0,0,2,0
-  for k,v in d1.items():
+def chi2(obs1,obs2):
+  obs12,tot1,tot2,r,c = {},0,0,2,0
+  for k,v in obs1.items():
     c    += 1
     tot1 += v
-    d3[k] = d3.get(k,0) + v
-  for k,v in d2.items():
+    obs12[k] = obs12.get(k,0) + v
+  for k,v in obs2.items():
     tot2 += v
-    d3[k] = d3.get(k,0) + v
-  tots = tot1 + tot2
-  df   = (rr-1)*(c-1)
-  e1   = { k:tot1*v/tots for k,v in d3.items() }
-  e2   = { k:tot2*v/tots for k,v in d3.items() }
-  chi   = [ (d1[k]  - v)**2/v for k,v in e1.items() ] + [ 
-            (d2[k]  - v)**2/v for k,v in e2.items() ]
-  return sum(chi),chi2Threshold(df)
+    obs12[k] = obs12.get(k,0) + v
+  tots    = tot1 + tot2
+  expect1 = { k:tot1*v/tots for k,v in obs12.items() }
+  expect2 = { k:tot2*v/tots for k,v in obs12.items() }
+  chi     = [ (obs1[k]  - expect)**2/expect for k,expect in expect1.items() ] + [ 
+              (obs2[k]  - expect)**2/expect for k,expect in expect2.items() ]
+  df      = (r-1)*(c-1)
+  return sum(chi), chi2Threshold(df)
 
 def _chi2():
   male  =  dict(rep=200, dem=150, ind=50)
@@ -42,6 +42,7 @@ def _chi2():
   dem = dict(favor=138, indiff=83, opposed=64)
   rep = dict(favor=64,  indiff=67, opposed=84)
   print chi2(dem, rep)
+  
 
 def chi2Threshold(df,conf=99,
          ns  =  [       1    ,      2,      5,     10,    15,
@@ -76,6 +77,7 @@ def mofn(lst,m=10,n=100):
   inc  = int(len(lst)/m)
   return sorted(lst)[0::inc]
 
+_chi2()
 class Sample:
   "Keep, at most, 'size' things."
   def __init__(i, init=[], size=None):

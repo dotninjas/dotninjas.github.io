@@ -35,12 +35,12 @@ def isMissing(x):
 
 """
 
-## `Col`
+## `Thing`
 
-`Col`s have two sub-classes: `Num` and `Sym`.
+`Thing`s have two sub-classes: `Num` and `Sym`.
 
 """
-class Col:
+class Thing:
   def __init__(i,inits=[],get=same):
     i.reset()
     i._get = get
@@ -63,7 +63,7 @@ Incrementally adds and subtracts symbol counts as well the most common symbol
        (the `mode`). Can report column `entropy`.
 
 """  
-class Sym(Col):
+class Sym(Thing):
   def reset(i):
     i.counts, i.most, i.mode, i.n = {},0,None,0
   def add(i,x):
@@ -96,7 +96,7 @@ Incrementally adds and subtracts numners to a Gaussian, tracking `mu` and
        report column `standard deviation`.
 
 """
-class Num(Col):
+class Num(Thing):
   def reset(i):
     i.mu,i.n,i.m2,i.up,i.lo = 0,0,0,-10e32,10e32
   def add(i,x):
@@ -119,7 +119,13 @@ class Num(Col):
     return 0 if i.n <= 2 else (i.m2/(i.n - 1))**0.5
   def small(i,cohen=0.3):
     return i.sd()*cohen
+  def same(i,j)
+  
 """
+
+## `Col`
+ 
+`Col`umns are places to throw a stream of numbers 
 
 ## `Tub`   
 
