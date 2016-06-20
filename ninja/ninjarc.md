@@ -500,17 +500,54 @@ eg4() {
 # the learner and pf values to `eg5.pf`.
 #
 #> 
-eg5() {
-    local i=$Tmp/eg5
-    crossval 5 5 data/weather.arff  $Seed j48 jrip | grep yes > $i
-    gawk  '{print $2,$10}' "$i" > "$i.pd"
-    gawk  '{print $2,$11}' "$i" > "$i.pf"
+eg5() {  
+    local out="$Tmp/eg5"
+    crossval 5 5 data/weather.arff  $Seed j48 jrip  > $out
+    gawk  '/yes/ {print $2,$10}' $out > ${out}.pd
+    gawk  '/yes/ {print $2,$11}' $out > ${out}.pf
+}
+#<
+# One un-good thing in the above is how we ahve to use numbers, not names, for the columns.
+# What wouldbe nice would be if some code could read the column names from the input (e.g.
+# using the lines containing "class".
+#
+# Two minutes later...
+#>
+columns() {
+    # usage: columns namedLine wantedLines [wantedFields] < file
+    # e.g. : columns class    true         rx pd
+    local header="${1}"
+    local select="${2}"
+    shift 2
+    local targets="$*"
+    gawk '/'$header'/ && !n { 
+                       for(i=1; i<=NF;i++) 
+                           where[$i]=i
+                        n=split(targets,want," ") }
+         /'$select'/ { report=""
+                        for(j=1; j<=n; j++) {
+                           if (want[j] in where)
+                              report = report $where[want[j]] " "
+                           else {
+                              print "?? " want[j] > "/dev/stderr"
+                              exit
+                        }}
+                        print report }'  targets="$targets"  -
+}
+#<
+# Here's the same functionality as eg5, but with named columns:
+#>
+eg5a() {  
+    local out="$Tmp/eg5a"
+    crossval 5 5 data/weather.arff  $Seed j48 jrip  > $out
+    columns class yes db pd  < $out > ${out}.pd
+    columns class yes db pf <  $out > ${out}.pf
 }
 #<
 #
 # Now we have two files containing just the learner and pd (or pf) values. For example, here are some lines from those files:
 #
-#      $Tmp/eg5.pd         $Tmp/eg5.pf
+#      $Tmp/eg5a.pd         $Tmp/eg5a.pf
 #      -----------         -----------
 #      ...                 ...
 #      j48 100             j48 0
@@ -527,53 +564,60 @@ eg5() {
 # For each file, for each learner listed in column1, we can run significance test and an effect sizue test using the `stats.py`
 # file.
 #>
-eg5a() {
-    local i=$Tmp/eg5
+eg5b() {
+    local i=$Tmp/eg5a
     if [ -f "$i.pd" ]; then
-       report pd $i
-       report pf $i
+       report pd $i.pf
+       report pf $i.pf
     else
-        eg5
-        eg5a
+        echo "please run eg5a"
     fi
 }
 report() {
     echo $1
-    python "$Here/stats.py" < ${2}.$1
+    python "$Here/stats.py" < $2
 }
 #<
-## Note a trick in the above: it only calls `eg5` if the `eg51 report files are missing. This is an important optimization
-# for very slow learners- only do the crossval if the crossval results are currently unknown.
-#
 # In any case, when this runs, we see that that `j48`'s `pd` distribution contains higher values and while its `pf`
 # distributions contains more lower values.
+#     pd
+#     
+#     rank ,         name ,    med   ,  iqr
+#     ----------------------------------------------------
+#        1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
+#        1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
+#     pf
+#     
+#     rank ,         name ,    med   ,  iqr
+#     ----------------------------------------------------
+#        1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
+#        1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
 #
+# Warning: The above results look exactly the same for pd and pf so this is where you should be going "hmmm... better
+# check that". It turns out that this result is correct-- but we check that by peeking at the raw output files:
 #
-#      pd     
-#      rank ,         name ,    med   ,  iqr
-#      ----------------------------------------------------
-#         1 ,         jrip ,     100  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
-#         1 ,          j48 ,     100  ,    50 (-------------- |             *), 0.00, 50.00, 100.00, 100.00, 100.00
+#       echo `cat $Tmp/eg5a.pd | grep j48 | sort -n -k 2 | cut -d \   -f 2`
+#       0 0 0 0 0 50 50 50 100 100 100 100 100 100 100 100 100 100 100 100 100 100
 #
-#      pf      
-#      rank ,         name ,    med   ,  iqr
-#      ----------------------------------------------------
-#         1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
-#         1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
+#       echo `cat $Tmp/eg5a.pd | grep jrip | sort -n -k 2 | cut -d \   -f 2`
+#       0 0 0 0 0 0 0 50 50 100 100 100 100 100 100 100 100 100 100 100 100 100 100
+#
 #
 # Now lets do all that again, this time for some SE data and for more leaners:
 #
+# XXX
 #>
+
 eg7() {
     local data="data/jedit-4.1.arff"         # edit this line to change the data
     local learners="j48 jrip nb rbfnet bnet" # edit this line to change the leaners
     local goal=true                          # edit this line to hunt for another goal                          
-    local i=$Tmp/eg7
+    local i="$Tmp/eg7"
     if [ -f "$i.pd" ]; then
-       report pd $i
-       report pf $i
+       report pd "$i"
+       report pf "$i"
     else
-        crossval 5 5 "$data" $Seed $learners | grep $goal > $i
+        crossval 5 5 "$data" $Seed $learners | grep $goal >"$i"
         gawk  '{print $2,$10}' "$i" > "$i.pd"
         gawk  '{print $2,$11}' "$i" > "$i.pf"
         eg7
@@ -588,7 +632,7 @@ eg8() {
        report pd $i
        report pf $i
     else
-        crossval 2 2 "$data" $Seed $learners | grep $goal > $i
+        crossval 2 2 "$data" $Seed $learners | grep $goal > "$i"
         gawk  '{print $2,$10}' "$i" > "$i.pd"
         gawk  '{print $2,$11}' "$i" > "$i.pf"
         eg7
@@ -770,7 +814,7 @@ ok() { # 3c) need a place for all the stuff that makes system usable
     ninjarc
     sh2md
     py2md
-    zips   
+    #zips   
 }
 
 dirs() { # 3d) create all the required dirs
@@ -1069,7 +1113,6 @@ crossval() {
     rm -f $Tmp/test*arff
     killControlM < "$data" |
     gawk -f crossval.awk cr=$r n=$n m=$m dir="$Tmp"
-    
     echo "$Tmp"
     cd "$Tmp"
     for learner in $learners; do
