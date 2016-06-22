@@ -975,6 +975,8 @@ ready() {
     gitting
 }
 gitting() {
+    git config --global user.name "Tim Menzies"
+    git config --global user.email tim@menzies.us
     git config --global core.editor "`which nano`"
     git config --global credential.helper cache
     git config credential.helper 'cache --timeout=3600'
