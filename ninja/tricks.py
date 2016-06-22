@@ -30,21 +30,7 @@ rseed=random.seed
 r=random.random
 copy=copy.deepcopy
 
-"""___________________________________________________
 
-##  Dictionary tricks
-"""
-
-def kv(d, private="_",
-       places=The.tricks.round):
-  "Print dicts, keys sorted (ignoring 'private' keys)"
-  def _private(key):
-    return key[0] == private
-  def pretty(x):
-    return round(x,places) if isa(x,float) else x
-  return ['%s: %s' % (k,pretty(d[k]))
-          for k in sorted(d.keys())
-          if not _private(k)]
 
 """___________________________________________________
 
@@ -71,7 +57,6 @@ def ros4(lst) : return map(r4,lst)
 ## Type tricks
 """
 
-def isa(x,y): return isinstance(x,y)
 def isSym(x): return isa(x,str)
 
 def thing(x):
