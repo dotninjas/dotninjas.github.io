@@ -82,7 +82,7 @@ def options():
   safe = o()
   for k,v in The.__dict__.items():
     safe[k]= o(**{k2:v2 for k2,v2 in v.__dict__.items()})
-  yield
-  print(1,The,safe)
+  yield The
+  for a in The.__dict__.items():
+    print(a)
   The = safe
-  print(2,The,safe)
