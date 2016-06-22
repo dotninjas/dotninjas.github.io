@@ -9,7 +9,7 @@
 from __future__ import division,print_function
 import sys
 sys.dont_write_bytecode=True
-from tubs import *
+from logs import *
 Demos=[]
 
 
@@ -43,7 +43,7 @@ Note that when reading the @XXX tags, `Arff` uses a case-insensitive match
 """
 class Arff:
   def __init__(i, f, prep=same):
-    i.tubs = Tubs()
+    i.rows = Rows()
     i.attributes = []
     i.relation   = 'relation'
     i.prep       = prep
@@ -67,7 +67,7 @@ class Arff:
               indep= line[:-1]
               dep  = [line[-1]]
               row = i.prep(Row(x=indep,y=dep))
-              i.tubs += row
+              i.rows += row
             else:
               line = line.split()
               if i.at(line[0],'RELATION'):
@@ -80,16 +80,16 @@ class Arff:
     lines=[]
     lines += ["@relation "+i.relation + "\n"]
     for pos,attr in enumerate(i.attributes):
-      col = i.tubs.col(pos)
+      col = i.rows.col(pos)
       txt=""
       if isa(col,Num):
         txt = "real"
       else:
-        vals = set([i.tubs.cell(row,pos) for row in i.tubs._rows]) 
+        vals = set([i.rows.cell(row,pos) for row in i.rows._rows]) 
         txt = "{ " + ', '.join(vals)+ " }"
       lines += [ "@attribute "+attr+ " " + txt ]
     lines += ["\n@data\n"]
-    for row in i.tubs._rows:
+    for row in i.rows._rows:
       lines += [ ', '.join(map(str,row.x + row.y)) ]
     return lines
     
@@ -129,33 +129,5 @@ def tf(row):
     row.y[0] = 'true' if klass > 0 else 'false'
   return row
 
-
-@demo
-def _arff():
-  """If we read this file and print the headers on the _x_ tub, we see the
-     distributions of symbols and numbers in the independent (non-class)
-     columns."""
-  a=Arff('data/weather.arff')
-  for x in a.tubs.x.cols.items():
-    print(x)
-
-"""
-{0: ["counts: {'rainy': 5, 'overcast': 4, 'sunny': 5}", 'mode: sunny', 'most: 5', 'n: 14'], 
- 1: ['lo: 64', 'm2: 561.43', 'mu: 73.57', 'n: 14', 'up: 85'], 
- 2: ['lo: 65', 'm2: 1375.21', 'mu: 81.64', 'n: 14', 'up: 96'], 
- 3: ["counts: {'TRUE': 6, 'FALSE': 8}", 'mode: FALSE', 'most: 8', 'n: 14']}
-}
-
-"""
-
-@demo
-def _arffWrite():
-  """If we read this file and print the headers on the _x_ tub, we see the
-     distributions of symbols and numbers in the independent (non-class)
-     columns."""
-  a=Arff('data/weather.arff')
-  print('\n'.join(a.write()))
-    
-if __name__ == '__main__': demos()
 
 

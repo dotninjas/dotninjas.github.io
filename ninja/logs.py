@@ -1,24 +1,40 @@
-"""
-
-# tubs.py : tricks for storing columns of data.
+"""# logs.py : tricks for storing columns of data.
 
 (C) 2016 tim@menzies.us, MIT license
 
-## Data model:  
+## The Data Story
 
-A `Tub` is a place to store columns of data:
+If the beginning was the thing and the thing was a `Num` or a `Sym`.
+
+And the things needed a place to gather and so was created the `Log`
+that `Sample`d some of the `Thing`s while keeping summaries on all the the
+`Thing`s seen too date. And the `Log` was smart in that you just kept throwing stuff at it and it worked out if if you were throwing `Num`s or `Sym`s.
+
+And somethings we say lots of data arriving at the same time and so was created the `Logs` that held multiple `Log`s.
+
+And the data being thown at the `Logs` was `Row` which had two parts:
+and `x` list and a `y` list.
+
+And `Rows` was a place made to store many `Row`s and the `Rows` kept summaries
+of the data in one `Logs` for `x` and another `Logs` for `y`.
+
+So `Rows` have 2 `Logs` and each `Logs` has many `Log` and each `Log` has one
+`Thing` (and that `Thing`) could be a `Num` or a `Sym`).
+
+## Less Informally:
+
+A `Log` is a place to store columns of data:
 
 - Columns contain either symbols or numbers.  
 - Columns have headers called `Sym` and `Num` and store summaires about
   symbolic or numeric columns, respectively.
-- When a `Row` is dumped into a `Tub`, the column headers are automatically
+- When a `Row` is dumped into a `Logs`, the column headers are automatically
   updated with information from that row
 
 Important note:
 
 - While `Row`s contain all the raw data, columns only contain a _summary_
-  of the data seen in each column.   
-
+  of the data seen in each column.
 
 """
 
@@ -28,6 +44,7 @@ sys.dont_write_bytecode=True
 
 from tricks import * 
 
+The.logs = o(few=10**32)
 
 def isMissing(x):
   "Null cells in columns contain '?'"
@@ -119,38 +136,85 @@ class Num(Thing):
     return 0 if i.n <= 2 else (i.m2/(i.n - 1))**0.5
   def small(i,cohen=0.3):
     return i.sd()*cohen
-  
+
 """
 
-## `Col`
+## `Sample`
+
+A place to keep, at most, a 'few' things.
+
+"""
+
+class Sample:
+  def __init__(i, init=[], few=None):
+    i.few = few or The.logs.few
+    i.n, i.some, i.ordered = 0, [], False
+    map(i.__iadd__,init)
+  def report(i):
+    i.some, i.ordered = sorted(i.some), True
+    q  = int(len(i.some)/4)
+    return i.some[q*2], i.some[q*3] - i.some[q]
+  def __iadd__(i,x):
+    i.ordered = False
+    i.n += 1
+    now  = len(i.some)
+    if now < i.few:
+      i.some += [x]
+    elif r() <= now/i.n:
+      i.some[ int(r() * now) ]= x
+    return i
+"""
+
+## `Log`
  
-`Col`umns are places to throw a stream of numbers 
+`Log`umns are places to sample a stream of `Thing`s (and it will work out if you
+are working with `Num`s or `Sym`s).
 
-## `Tub`   
+The type of `Thing` is defermined by the first non-empty entry seen.
 
+"""
+
+class Log:
+  def __init__(i,few=None):
+    i.sample=Sample(few= few)
+    i.thing = None
+  def __iadd__(i,x):
+    if not isMissing(x):
+      if not i.thing:
+        i.thing = Sym() if isSym(x) else Num()
+      i.thing  += x
+      i.sample += x
+    return i
+    
+"""
+
+
+## `Logs`   
+
+- Holds a set of `Log`s
 - When a new `Row` is added, updates column summaries.
 - When processing a `Row`,  if a cell is empty (defined by `isMissing`) then we skip over it.
-- The type of a column is defermined by the first non-empty entry seen in any row
-  (see how `about` is set, below).
 - Before summarizing a row in a column header, the row is filted via some `get`
   function (which defaults to `same`; i.e.  use the whole row, as is).
 
-Note that `Tub`s do not store the `rows` (that is done elsewhere, see `Tubs`, below).
+Note that `Logs`s may or may not not store the `rows` 
 
 """
-class Tub:
-  def __init__(i,get = same):
+class Logs:
+  def __init__(i,get = same,keep=False):
     i.cols = {}  # i.cols[i] is a summary of column i.
     i._get = get
+    i.keep = keep
+    i._all  = []
   def __iadd__(i,lst):
     lst = i._get(lst)
+    if not i.cols:
+      for j,_ in enumerate(lst):
+        i.cols[j] = Log()
     for j,val in enumerate(lst):
-      if not isMissing(val):
-        col = i.cols.get(j,None)
-        if not col:
-          col = i.cols[j] = Sym() if isSym(val) else Num()
-          col.pos = j
-        col += val
+      i.cols[j] += val
+    if i.keep:
+      i.all.append(lst)
     return i
 """
 
@@ -158,8 +222,8 @@ class Tub:
 
 A `Row` is something that can be divided into into `x,y` columns and each of
  which can be stored in different tubs.  The knowledge of how to access `x`, or
- `y` out of the row is given to a `Tub` when it is created (see the above
- `Tub.get` attribute).
+ `y` out of the row is given to a `Rows` when it is created (see the following
+ `Rows.get` attribute).
 
 """
 class Row:
@@ -168,16 +232,16 @@ class Row:
     i.y = y or [] 
 """
 
-## `Tubs`
+## `Rows`
  
-A `Tubs` is a place to store `Row`s and summaries about those rows.
-Those summaries are stored in two `Tub`s.
+A `Rows` is a place to store many `Row`s and summaries about those rows.
+Those summaries are stored in two `Logs`s.
 
-- The `x` field holds a `Tub` of any independent data;
-- The `y` field holds a `Tub` of any dependent data (e.g. one of more class
+- The `x` field holds a `Log` of any independent data;
+- The `y` field holds a `Log` of any dependent data (e.g. one of more class
   variables).
-- When a row is added to a `Tubs`, its `x,y` components are sent to two
-  seperate _Tubs_
+- When a row is added to a `Rows`, its `x,y` components are sent to two
+  seperate _Logs_
 
 First, need accessors to _x,y_ fields:
 
@@ -185,15 +249,17 @@ First, need accessors to _x,y_ fields:
 def xx(z): return z.x
 def yy(z): return z.y
 
-class Tubs:
-  def __init__(i,xx=xx,yy=yy):
-    i.x=Tub(xx)
-    i.y=Tub(yy)
+class Rows:
+  def __init__(i,xx=xx,yy=yy,keep=True):
+    i.x=Logs(xx)
+    i.y=Logs(yy)
+    i.keep=True
     i._rows = []
   def __iadd__(i,row):
     i.x += row
     i.y += row
-    i._rows += [row]
+    if i.keep:
+      i._rows.append(row)
     return i
   def col(i,pos):
     if  pos < len(i.x.cols):
@@ -206,5 +272,3 @@ class Tubs:
      else:
       return row.y[len(i.x.cols) - pos]
 
-
-if __name__=='__main__': demo("tubDemo")

@@ -9,7 +9,7 @@ ___________________________________________________
 
 """
 from __future__ import division,print_function
-import sys,random,re,copy,os,inspect
+import sys,random,re,copy,os,inspect,traceback
 sys.dont_write_bytecode=True # don't write irritating .pyc files
 
 """___________________________________________________
@@ -28,17 +28,39 @@ class o:
 
 def same(z): return z
 
-def ok(f):
-  print("\n-----| %s |-----------------------" % f.__name__)
-  if f.__doc__:
-      print("# "+ re.sub(r'\n[ \t]*',"\n# ",f.__doc__)+"\n")
-  f()
-  return f
+def ok(*lst):
+  for one in lst: unittest(one)
+  return one
+
+def oks():
+  print(unittest.score())
+
+class unittest:
+  tries = fails = 0  #  tracks the record so far
+  @staticmethod
+  def score():
+    t = unittest.tries
+    f = unittest.fails
+    return "# TRIES= %s FAIL= %s %%PASS = %s%%"  % (
+      t,f,int(round(t*100/(t+f+0.001))))
+  def __init__(i,test):
+    unittest.tries += 1
+    try:
+      print("\n-----| %s |-----------------------" % test.__name__)
+      if test.__doc__:
+         print("# "+ re.sub(r'\n[ \t]*',"\n# ",test.__doc__)+"\n")
+      test()
+    except Exception,e:
+      unittest.fails += 1
+      print(traceback.format_exc())
+      print(unittest.score(),':',test.__name__)
 
 """___________________________________________________
 
 ## Options trick
 """
+
+# 'The' is the place to hold global options
 
 # 'The' is the place to hold global options
 

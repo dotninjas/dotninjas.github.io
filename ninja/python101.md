@@ -2,6 +2,10 @@
 
 REad this book:
 
+## Watch this manifesto
+
+https://www.youtube.com/watch?v=nIonZ6-4nuU
+
 ## My Conventions
 
 - Indentaion always with 2 spaces.
@@ -9,6 +13,27 @@ REad this book:
 - For data-only classes, I use `o` which kinda emulates structs in Javascript.
 - Many functions have demo scripts. So the file X.py might have
   the file Xok.py for the demos.
+- Options stored in a global nested dictionary called `The`.
+
+Wrong way to access those options (since in the following, `this` is
+evaluated once at load time and never can be changed):
+
+```python
+class XYZ:
+ def __init__(i, this=The.this):
+   i.this = this
+   ...
+   
+```
+
+Right way (options reset everytime this is called):
+
+```python
+class XYZ:
+ def __init__(i, this=None):
+   i.this = this or The.this
+   ...
+```
 
 ## Writing Demo Files
 
@@ -55,3 +80,4 @@ functions
 ```python
 python tricksok.py
 ```
+
