@@ -1,7 +1,7 @@
 from __future__ import division,print_function
 import sys
 sys.dont_write_bytecode=True
-from logs import *
+from rows import *
 
 @ok
 def _sample():
@@ -25,19 +25,21 @@ def _col():
 
 @ok
 def _log():
+  "Handle one list of numbers"
   l = Log()
   for x in ["?","?", 600 , 470 , 170 , 430 , 300]:
     l += x
-  assert 164.711 <= l.thing.sd() <= 164.712
-  assert l.thing.lo == 170
-  assert l.thing.up == 600
+  assert 164.711 <= l.about.sd() <= 164.712
+  assert l.about.lo == 170
+  assert l.about.up == 600
 
 @ok
-def _tub():
+def _logs():
+  "Handle 10 lists, each of which contains 1 word and 4 numbers"
   rseed(1)
   l = Logs()
   for _ in xrange(10):
-    l += ["thing"] + [r()**(0.1*n) for n in xrange(4)]
-  print([x.thing for x in l.cols.values()])
+    l += ["word"] + [r()**(0.1*n) for n in xrange(4)]
+  print([x.about for x in l.cols.values()])
   
 oks()

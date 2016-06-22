@@ -9,8 +9,7 @@
 from __future__ import division,print_function
 import sys
 sys.dont_write_bytecode=True
-from logs import *
-Demos=[]
+from rows import *
 
 
 """_______________________________________________________________________
@@ -85,11 +84,11 @@ class Arff:
       if isa(col,Num):
         txt = "real"
       else:
-        vals = set([i.rows.cell(row,pos) for row in i.rows._rows]) 
+        vals = set([i.rows.cell(row,pos) for row in i.rows._all]) 
         txt = "{ " + ', '.join(vals)+ " }"
       lines += [ "@attribute "+attr+ " " + txt ]
     lines += ["\n@data\n"]
-    for row in i.rows._rows:
+    for row in i.rows._all:
       lines += [ ', '.join(map(str,row.x + row.y)) ]
     return lines
     

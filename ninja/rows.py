@@ -1,8 +1,49 @@
-"""# logs.py : tricks for storing columns of data.
+"""# rows.py : tricks for storing rows of data.
 
 (C) 2016 tim@menzies.us, MIT license
 
-## The Data Story
+"""
+from __future__ import division,print_function
+import sys,math 
+sys.dont_write_bytecode=True
+
+"""
+## `Rows` : The top-down story      
+
+In data mining we deal with pairs of indepdent and dependent data
+
+In optimization, we deal with decision and objectives 
+
+For example, if a house has doors, location, rooms, salesPrice, maintenanceCost then
+
+- doors, location, rooms are independent decisions 
+- and `salesPrice, maintenanceCost` might be dependent things we want to predict with a  data miner
+- or `salesPrice, maintenanceCost` might be objectives we want to maximize, minimize (respectively) with an optimizer.
+
+Note that the synonyms: independent= decision and dependent=objective.  Those words
+are far too long to type into code all the time so....
+
+A `Row` is something that can be divided into into `x,y` columns.
+
+- The `x` columns can be used for indepednent or decision attributes;
+- The `y` columns can be used for depednent or objective d attributes;
+
+Note that either `x` or `y` can be empty.
+
+"""
+class Row:
+  def __init__(i,x=None,y=None):
+    i.x = x or []
+    i.y = y or []
+"""
+
+In the following, we build a `Rows` class that can keep a list of `Row`s while
+keeping summaries of all the the `x` and `y` columns in a `Log` (one `Log` for
+each column).
+
+Since `x` or `y` can be empty, we keep a seperate set of  `Log`s  for each `x` and `y`. 
+
+## `Rows`: the bottom-up story.
 
 If the beginning was the thing and the thing was a `Num` or a `Sym`.
 
@@ -38,13 +79,12 @@ Important note:
 
 """
 
-from __future__ import division,print_function
-import sys,math 
-sys.dont_write_bytecode=True
 
 from tricks import * 
 
-The.logs = o(few=10**32)
+The.rows = o(few     = 256,
+             keepLog = False,
+             keepRows= True)
 
 def isMissing(x):
   "Null cells in columns contain '?'"
@@ -147,7 +187,7 @@ A place to keep, at most, a 'few' things.
 
 class Sample:
   def __init__(i, init=[], few=None):
-    i.few = few or The.logs.few
+    i.few = The.rows.few if few is None else flse
     i.n, i.some, i.ordered = 0, [], False
     map(i.__iadd__,init)
   def report(i):
@@ -168,7 +208,7 @@ class Sample:
 ## `Log`
  
 `Log`umns are places to sample a stream of `Thing`s (and it will work out if you
-are working with `Num`s or `Sym`s).
+are working with `Num`s or `Sym`s). The summary of the `Thing`s is kept in `about`.
 
 The type of `Thing` is defermined by the first non-empty entry seen.
 
@@ -177,12 +217,12 @@ The type of `Thing` is defermined by the first non-empty entry seen.
 class Log:
   def __init__(i,few=None):
     i.sample=Sample(few= few)
-    i.thing = None
+    i.about = None
   def __iadd__(i,x):
     if not isMissing(x):
-      if not i.thing:
-        i.thing = Sym() if isSym(x) else Num()
-      i.thing  += x
+      if i.about is None:
+        i.about = Sym() if isSym(x) else Num()
+      i.about  += x
       i.sample += x
     return i
     
@@ -201,35 +241,21 @@ Note that `Logs`s may or may not not store the `rows`
 
 """
 class Logs:
-  def __init__(i,get = same,keep=False):
-    i.cols = {}  # i.cols[i] is a summary of column i.
+  def __init__(i,get = same,keep=None):
+    i.cols = None  # i.cols[i] is a summary of column i.
     i._get = get
-    i.keep = keep
+    i.keep = The.rows.keepLog if keep is None else keep
     i._all  = []
   def __iadd__(i,lst):
     lst = i._get(lst)
-    if not i.cols:
-      for j,_ in enumerate(lst):
-        i.cols[j] = Log()
+    if i.cols is None:
+      i.cols = {j:Log() for j,_ in enumerate(lst)}
     for j,val in enumerate(lst):
       i.cols[j] += val
     if i.keep:
       i.all.append(lst)
     return i
-"""
 
-## `Row`       
-
-A `Row` is something that can be divided into into `x,y` columns and each of
- which can be stored in different tubs.  The knowledge of how to access `x`, or
- `y` out of the row is given to a `Rows` when it is created (see the following
- `Rows.get` attribute).
-
-"""
-class Row:
-  def __init__(i,x=None,y=None):
-    i.x = x or []
-    i.y = y or [] 
 """
 
 ## `Rows`
@@ -242,6 +268,9 @@ Those summaries are stored in two `Logs`s.
   variables).
 - When a row is added to a `Rows`, its `x,y` components are sent to two
   seperate _Logs_
+0 The knowledge of how to access `x`, or
+ `y` out of the row is given to a `Rows` when it is created (see the following
+ `Rows.get` attribute).
 
 First, need accessors to _x,y_ fields:
 
@@ -250,16 +279,16 @@ def xx(z): return z.x
 def yy(z): return z.y
 
 class Rows:
-  def __init__(i,xx=xx,yy=yy,keep=True):
+  def __init__(i,xx=xx,yy=yy,keep=None):
     i.x=Logs(xx)
     i.y=Logs(yy)
-    i.keep=True
-    i._rows = []
+    i.keep = The.rows.keepRows if keep is None else keep
+    i._all = []
   def __iadd__(i,row):
     i.x += row
     i.y += row
     if i.keep:
-      i._rows.append(row)
+      i._all.append(row)
     return i
   def col(i,pos):
     if  pos < len(i.x.cols):

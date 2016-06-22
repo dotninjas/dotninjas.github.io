@@ -1,5 +1,5 @@
 from __future__ import division,print_function
-import sys,math 
+import sys,math
 sys.dont_write_bytecode=True
 
 from arff import * 
@@ -45,8 +45,9 @@ def _arff():
      distributions of symbols and numbers in the independent (non-class)
      columns."""
   a=Arff('data/weather.arff')
-  for x in a.rows.x.cols.items():
-    print(x)
+  for n,log in a.rows.x.cols.items():
+    print(n,log.thing)
+#    print(x.thing)
 
 """
 {0: ["counts: {'rainy': 5, 'overcast': 4, 'sunny': 5}", 'mode: sunny', 'most: 5', 'n: 14'], 
