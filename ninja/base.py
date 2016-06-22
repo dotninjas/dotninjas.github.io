@@ -14,6 +14,7 @@ from contextlib import contextmanager
 
 class o:
   def __init__(i, **adds): i.__dict__.update(adds)
+  def __setitem__(i,k,v) : i.__dict__[k] = v
   def __repr__(i)        : return kv(i.__dict__)
 
 """___________________________________________________
@@ -57,6 +58,7 @@ class unittest:
 
 # 'The' is the place to hold global options. `the
 
+
 The = o(misc=o(round=4))
 
 def isa(x,y): return isinstance(x,y)
@@ -77,6 +79,10 @@ def kv(d, private="_",
 def options():
   "Allow for temporary change the options, which can be reversed."
   global The
-  safe = copy.deepcopy(The)
+  safe = o()
+  for k,v in The.__dict__.items():
+    safe[k]= o(**{k2:v2 for k2,v2 in v.__dict__.items()})
   yield
+  print(1,The,safe)
   The = safe
+  print(2,The,safe)
