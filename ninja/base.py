@@ -3,7 +3,7 @@
 
 """
 from __future__ import division,print_function
-import sys,re,traceback,copy
+import sys,re,traceback
 sys.dont_write_bytecode=True # don't write irritating .pyc files
 from contextlib import contextmanager
 
@@ -11,12 +11,13 @@ from contextlib import contextmanager
 
 ## Generic container trick (fields, but no methods).
 """
+def isa(x,y): return isinstance(x,y)
 
 class o:
   def __init__(i, **adds): i.__dict__.update(adds)
   def __setitem__(i,k,v) : i.__dict__[k] = v
   def __repr__(i)        : return kv(i.__dict__)
-
+    
 """___________________________________________________
 
 ## Meta tricks (one day, this will make sense)
@@ -58,31 +59,16 @@ class unittest:
 
 # 'The' is the place to hold global options. `the
 
-
 The = o(misc=o(round=4))
 
-def isa(x,y): return isinstance(x,y)
-
-def kv(d, private="_",
-       places=None):
+def kv(d, private="_"):
   "Print dicts, keys sorted (ignoring 'private' keys)"
-  places = The.misc.round if places is None else 4
+  print("::::",The.misc.round)
   def _private(key):
     return key[0] == private
   def pretty(x):
-    return round(x,places) if isa(x,float) else x
+    return round(x,The.misc.round) if isa(x,float) else x
   return '<'+', '.join(['%s: %s' % (k,pretty(d[k]))
           for k in sorted(d.keys())
           if not _private(k)]) + '>'
 
-@contextmanager
-def options():
-  "Allow for temporary change the options, which can be reversed."
-  global The
-  safe = o()
-  for k,v in The.__dict__.items():
-    safe[k]= o(**{k2:v2 for k2,v2 in v.__dict__.items()})
-  yield The
-  for a in The.__dict__.items():
-    print(a)
-  The = safe

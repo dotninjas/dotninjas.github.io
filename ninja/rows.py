@@ -37,11 +37,26 @@ class Row:
     i.y = y or []
 """
 
+Since `x` or `y` can be empty, we keep a seperate set of  `Log`s  for each `x` and `y`. 
+
 In the following, we build a `Rows` class that can keep a list of `Row`s while
 keeping summaries of all the the `x` and `y` columns in a `Log` (one `Log` for
 each column).
 
-Since `x` or `y` can be empty, we keep a seperate set of  `Log`s  for each `x` and `y`. 
+```
+#      x1, x2, x3,    x4      y1, y2 
+      -------------------    -------
+Row(x=[ 0,  1,  2,   red], y=[ 3,  4])
+Row(x=[ 2,  3,  4, green], y=[ 6,  6])
+Row(x=[ 1,  2,  3,   red], y=[ 4,  5])
+```
+
+If we add these to `Rows` then:
+
+-  In the summary objects for `x1,x2,x3` we will see means of 1,2,3;
+-  In the summary objects for `x4` we will see a mode 
+   of `green` and frequency counts for `red,green` of 2,1;
+-  In the summary objects for `y1,y2` we will see means of 4,5.
 
 ## `Rows`: the bottom-up story.
 
@@ -249,6 +264,7 @@ class Logs:
   def __iadd__(i,lst):
     lst = i._get(lst)
     if i.cols is None:
+      print(1)
       i.cols = {j:Log() for j,_ in enumerate(lst)}
     for j,val in enumerate(lst):
       i.cols[j] += val
@@ -288,6 +304,7 @@ class Rows:
     i.x += row
     i.y += row
     if i.keep:
+      print("+")
       i._all.append(row)
     return i
   def col(i,pos):

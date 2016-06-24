@@ -48,7 +48,7 @@ class Arff:
     i.prep       = prep
     i.reads(f)
   def empty(i,x):
-    return re.match('^[ \t]*$',x)
+    return x.strip() == ""
   def at(i,x,txt):
     return re.match('^[ \t]*@'+txt,x,re.IGNORECASE)
   def header(i):
@@ -91,4 +91,3 @@ class Arff:
     for row in i.rows._all:
       lines += [ ', '.join(map(str,row.x + row.y)) ]
     return lines
-    

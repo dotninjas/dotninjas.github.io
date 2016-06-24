@@ -45,8 +45,10 @@ def _arff():
      distributions of symbols and numbers in the independent (non-class)
      columns."""
   a=Arff('data/weather.arff')
+  
+  print("X",a.rows.x.cols)
   for n,log in a.rows.x.cols.items():
-    print(n,log.thing)
+    print(n,log.about)
 #    print(x.thing)
 
 """
@@ -58,7 +60,7 @@ def _arff():
 
 """
 
-@ok
+#@ok
 def _arffWrite():
   """If we read this file and print the headers on the _x_ tub, we see the
      distributions of symbols and numbers in the independent (non-class)
