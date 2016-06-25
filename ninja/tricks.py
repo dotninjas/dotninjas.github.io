@@ -30,7 +30,14 @@ rseed=random.seed
 r=random.random
 copy=copy.deepcopy
 
+"""__________________________________________________
 
+## Stabndard maths tricks
+
+"""
+
+def less(x,y) : return x < y
+def more(x,y) : return x > y
 
 """___________________________________________________
 
@@ -59,7 +66,7 @@ def ros4(lst) : return map(r4,lst)
 
 def isSym(x): return isa(x,str)
 
-def thing(x):
+def atom(x):
   "Coerce to a float or an int or a string"
   try: return int(x)
   except ValueError:
@@ -68,3 +75,17 @@ def thing(x):
       return x
 
 
+"""___________________________________________________
+
+## Cache tricks
+"""
+
+def cached(x,y,cache,f):
+  if id(x) > id(y):
+    x,y = y,x
+  key = (id(x),id(y))
+  if key in cache:
+    return cache[key]
+  else:
+    new = cache[key] = f(x,y)
+    return new

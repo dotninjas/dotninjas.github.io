@@ -30,12 +30,12 @@ A `Row` is something that can be divided into into `x,y` columns.
 
 Note that either `x` or `y` can be empty.
 
-"""
+```python
 class Row:
   def __init__(i,x=None,y=None):
     i.x = x or []
     i.y = y or []
-"""
+``` 
 
 Since `x` or `y` can be empty, we keep a seperate set of  `Log`s  for each `x` and `y`. 
 
@@ -116,6 +116,7 @@ class Thing:
   def __init__(i,inits=[],get=same):
     i.reset()
     i._get = get
+    i.w    = 1
     map(i.__iadd__,inits)
   def __iadd__(i,x):
     x = i._get(x)
@@ -148,6 +149,9 @@ class Sym(Thing):
     i.counts[x] -= 1
     if x == i.mode:
       i.most, i.mode = None,None
+  def distance(i,x,y) : return 0 if x == y else 1
+  
+  def furthest(i,x): return "SoMEcrazyTHing"
   def k(i):
     return len(i.counts.keys())
   def ent(i):
@@ -186,6 +190,9 @@ class Num(Thing):
     delta = x - i.mu
     i.mu  = max(0,i.mu - delta/i.n)
     i.m2  = max(0,i.m2 - delta*(x - i.mu))
+  def distance(i,x,y) : return i.norm(x) - i.norm(y)
+  def norm(i,x)       : return (x - i.lo)/(i.up - i.lo  + 10**-32)
+  def furthest(i,x)   : return i.up if x <(i.up-i.lo)/2 else i.lo
   def sd(i):
     "Measures how varied are the measures from the mean."
     return 0 if i.n <= 2 else (i.m2/(i.n - 1))**0.5
@@ -261,19 +268,63 @@ class Logs:
     i._get = get
     i.keep = The.rows.keepLog if keep is None else keep
     i._all  = []
+    i.dists = {}
   def __iadd__(i,lst):
     lst = i._get(lst)
     if i.cols is None:
-      print(1)
-      i.cols = {j:Log() for j,_ in enumerate(lst)}
+      i.cols = {}
+      for j,_ in enumerate(lst):
+        logger = Log()
+        logger.pos = j
+        i.cols[j] = logger
     for j,val in enumerate(lst):
       i.cols[j] += val
     if i.keep:
       i.all.append(lst)
     return i
+  def distance(i,r1,r2):
+    if id(r1) > id(r2):
+      r1,r2 = r2,r1
+    key = (id(r1),id(r2))
+    if key in i.dists:
+      return i.dists[key]
+    else:
+      new = i.dists[key] = i.distance1(r1,r2)
+      return new
+  def distance1(i,r1,r2):
+    ds = ws = 0
+    for col,x,y in zip(i.cols.values(),
+                       i._get(r1),
+                       i._get(r2)):
+      ds, ws = i.distance2(col.about, x,y, ds, ws)
+    return ds**0.5 / (ws + 10**-32)**0.5
+  def distance2(i,about,x,y,ds,ws):
+    nox = isMissing(x)
+    noy = isMissing(y)
+    if nox and noy: 
+      return ds, ws
+    elif x == y: 
+      inc = 0
+    elif not nox and not noy: 
+      inc = about.distance(x,y)
+    elif nox:
+      x   = about.furthest(y)
+      inc = about.distance(x,y) 
+    else:
+      y   = about.furthest(x)
+      inc = about.distance(x,y)
+    return ds + about.w*(inc**2), ws + about.w
+  
+"""
+## Row
 
 """
+class Row:
+  def __init__(i,x=None,y=None):
+    i.x = x or []
+    i.y = y or []
 
+"""
 ## `Rows`
  
 A `Rows` is a place to store many `Row`s and summaries about those rows.
@@ -304,17 +355,17 @@ class Rows:
     i.x += row
     i.y += row
     if i.keep:
-      print("+")
       i._all.append(row)
     return i
-  def col(i,pos):
-    if  pos < len(i.x.cols):
-      return i.x.cols[pos]
-    else:
-      return i.y.cols[len(i.x.cols) - pos ]
-  def cell(i,row,pos):
-     if  pos < len(i.x.cols):
-      return row.x[pos]
-     else:
-      return row.y[len(i.x.cols) - pos]
-
+  def closest(i, r1,xy= xx, init= 10**32, better= less):
+    delta,out = init, None
+    for r2 in i._all:
+      if id(r1) != id(r2):
+        tmp = xy(i).distance(r1,r2)
+        if better(tmp, delta):
+           delta,out = tmp,r2
+    return out 
+  def furthest(i,r, xy=xx): 
+    return i.closest(r, xy, -1, more)
+  def distance(i, r1,r2, xy=xx):
+    return xy(i).distance(r1,r2)

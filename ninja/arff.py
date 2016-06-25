@@ -43,30 +43,23 @@ Note that when reading the @XXX tags, `Arff` uses a case-insensitive match
 class Arff:
   def __init__(i, f, prep=same):
     i.rows = Rows()
-    i.attributes = []
     i.relation   = 'relation'
     i.prep       = prep
+    i.attributes = []
     i.reads(f)
-  def empty(i,x):
-    return x.strip() == ""
   def at(i,x,txt):
     return re.match('^[ \t]*@'+txt,x,re.IGNORECASE)
-  def header(i):
-    return ", ".join(i.attributes)
   def reads(i,f):
+    attributes=[]
     data = False
     with open(f)  as fs:
       for line in fs:
         line = re.sub(r'(["\'\r\n]|#.*)', "", line)
-        if line:
-          if not i.empty(line): # skip blank lines
+        if line != "":
             if data:
-              line = line.split(",")
-              line = map(thing,line)
-              indep= line[:-1]
-              dep  = [line[-1]]
-              row = i.prep(Row(x=indep,y=dep))
-              i.rows += row
+              line = map(atom, line.split(","))
+              i.rows += i.prep(Row(x= line[:-1],
+                                   y=[line[-1]]))
             else:
               line = line.split()
               if i.at(line[0],'RELATION'):
@@ -76,15 +69,18 @@ class Arff:
               elif i.at(line[0],'DATA'):
                 data=True
   def write(i):
-    lines=[]
-    lines += ["@relation "+i.relation + "\n"]
+    lines = ["@relation "+i.relation + "\n"]
     for pos,attr in enumerate(i.attributes):
-      col = i.rows.col(pos)
+      what = xx
+      if pos > len(i.rows.x.cols) - 1:
+        pos = pos - len(i.rows.x.cols) 
+        what = yy
+      col = what(i.rows).cols[pos]
       txt=""
-      if isa(col,Num):
+      if isa(col.about,Num):
         txt = "real"
       else:
-        vals = set([i.rows.cell(row,pos) for row in i.rows._all]) 
+        vals = set([what(row)[pos] for row in i.rows._all]) 
         txt = "{ " + ', '.join(vals)+ " }"
       lines += [ "@attribute "+attr+ " " + txt ]
     lines += ["\n@data\n"]

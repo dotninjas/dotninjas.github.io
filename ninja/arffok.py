@@ -41,15 +41,12 @@ def tf(row):
 
 @ok
 def _arff():
-  """If we read this file and print the headers on the _x_ tub, we see the
+  """If we read this file and print the headers on the _x_ logs, we see the
      distributions of symbols and numbers in the independent (non-class)
      columns."""
   a=Arff('data/weather.arff')
-  
-  print("X",a.rows.x.cols)
   for n,log in a.rows.x.cols.items():
     print(n,log.about)
-#    print(x.thing)
 
 """
 {0: ["counts: {'rainy': 5, 'overcast': 4, 'sunny': 5}", 'mode: sunny', 'most: 5', 'n: 14'], 
@@ -60,14 +57,24 @@ def _arff():
 
 """
 
-#@ok
+@ok
 def _arffWrite():
-  """If we read this file and print the headers on the _x_ tub, we see the
-     distributions of symbols and numbers in the independent (non-class)
-     columns."""
-  a=Arff('data/weather.arff')
-  print('\n'.join(a.write()))
+  """Can we read/write a data set?"""
+  print('\n'.join(  Arff('data/weather.arff').write() ))
 
+@ok
+def _dists():
+  rows = Arff('data/weather.arff').rows
+  xy=xx
+  for row in rows._all:
+    near = rows.closest(row, xy)
+    dnear= rows.distance(row,near,xy)
+    far  = rows.furthest(row,xy)
+    dfar = rows.distance(row,far,xy)
+    print("")
+    print(xy(row))
+    print(xy(near), dnear )
+    print(xy(far),  dfar  )
 
 oks()
 

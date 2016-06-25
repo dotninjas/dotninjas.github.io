@@ -63,7 +63,6 @@ The = o(misc=o(round=4))
 
 def kv(d, private="_"):
   "Print dicts, keys sorted (ignoring 'private' keys)"
-  print("::::",The.misc.round)
   def _private(key):
     return key[0] == private
   def pretty(x):
