@@ -1,7 +1,7 @@
 from __future__ import division,print_function
 import sys
 sys.dont_write_bytecode=True
-
+from tricks import *
 """
 
 e.g.
@@ -19,33 +19,7 @@ b a
 # sdsa                 ada           4    0    3   1    1   20  25 100  50  33   0 a
 # sdsa                 ada           0    4    0   1    0   20  25  20   0   0  38 c
 """
- 
-def demo():
-  log=None
-  for line in sys.stdin:
-    one, two = line.split()
-    if log:
-      log(one, two)
-    else:
-      actual, predicted = one, two
-      log = Abcd( actual, predicted )
-  log.report()
 
-class o:
-  def __init__(i,**d) : i.add(**d)
-  def has(i): return i.__dict__
-  def add(i,**d) : i.has().update(**d); return i
-  def __setitem__(i,k,v): i.has()[k] = v
-  def __getitem__(i,k)  : return i.has()[k]
-  def __repr__(i) :
-    f = lambda z: z.__class__.__name__ == 'function'
-    name = lambda z: z.__name__ if f(z) else z
-    public = lambda z: not "_" is z[0]
-    d    = i.has()
-    show = [':%s=%s' % (k,name(d[k])) 
-            for k in sorted(d.keys()) if public(k)]
-    return '{'+' '.join(show)+'}'
-    
 class Abcd: 
   def __init__(i,db="all",rx="all"):
     i.db = db; i.rx=rx;
@@ -105,6 +79,4 @@ class Abcd:
         '{10:3d} {11:3d} {12:3d} {13:10s}').format(
           s.db, s.rx,  s.yes, s.a, s.b, s.c, s.d, 
           s.acc, s.pd, s.pf, s.prec, s.f, s.g, x))
-   
-if __name__ == "__main__":
-  demo()
+      

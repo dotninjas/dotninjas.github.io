@@ -41,28 +41,32 @@ Note that when reading the @XXX tags, `Arff` uses a case-insensitive match
 
 """
 class Arff:
-  def __init__(i, f, prep=same):
-    i.rows = Rows()
+  def __init__(i,f,prep=same):
+    i.rows       = Rows()
     i.relation   = 'relation'
     i.prep       = prep
     i.attributes = []
-    i.reads(f)
+    i.file       = f
   def at(i,x,txt):
     return re.match('^[ \t]*@'+txt,x,re.IGNORECASE)
   def __iadd__(i,row):
     i.rows += row
     return i
-  def reads(i,f):
+  def reads(i):
+    for row in i.read1():
+      i += row
+    return i
+  def read1(i):
     attributes=[]
     data = False
-    with open(f)  as fs:
+    with open(i.file)  as fs:
       for line in fs:
         line = re.sub(r'(["\'\r\n]|#.*)', "", line)
         if line != "":
             if data:
               line = map(atom, line.split(","))
-              i += i.prep(Row( x= line[:-1],
-                               y=[line[-1]]))
+              yield i.prep(Row( x= line[:-1],
+                                y= [line[-1]]))
             else:
               line = line.split()
               if i.at(line[0],'RELATION'):

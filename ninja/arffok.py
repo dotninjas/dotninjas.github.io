@@ -44,7 +44,7 @@ def _arff():
   """If we read this file and print the headers on the _x_ logs, we see the
      distributions of symbols and numbers in the independent (non-class)
      columns."""
-  a=Arff('data/weather.arff')
+  a=Arff('data/weather.arff').reads()
   for n,log in a.rows.x.cols.items():
     print(n,log.about)
 
@@ -60,23 +60,26 @@ def _arff():
 @ok
 def _arffWrite():
   """Can we read/write a data set?"""
-  print('\n'.join(  Arff('data/weather.arff').write() ))
+  print('\n'.join(  Arff('data/weather.arff').reads().write() ))
 
 @ok
-def _dists():
-  rows = Arff('data/weather.arff').rows
-  xy=xx
-  rows=xy(rows)
+def _dists(xy=xx):
+  rows = Arff('data/weather.arff').reads().rows
+  least,r1,r2 = 10**32,None,None
   for row in rows._all:
-    near = closest(row, rows)
+    near = rows.closest(row, xy)
     dnear= rows.distance(row,near,xy)
-    far  = rows.furthest(row,xy)
+    if dnear < least:
+      least, r1, r2 = dnear, row,near
+    far  = rows.furthest(row, xy)
     dfar = rows.distance(row,far,xy)
-    print("")
-    print(xy(row))
-    print(xy(near), dnear )
-    print(xy(far),  dfar  )
+    print("it",xy(row),  "near", xy(near),  "d1",ro3(dnear), "far",xy(far), "d2",ro3(dfar)  )
+  print("\nnearest", xy(r1),xy(r2),ro3(least))
 
+@ok
+def _distsyy():
+  _dists(yy)
+  
 oks()
 
 # nb
