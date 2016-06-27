@@ -66,8 +66,9 @@ def _arffWrite():
 def _dists():
   rows = Arff('data/weather.arff').rows
   xy=xx
+  rows=xy(rows)
   for row in rows._all:
-    near = rows.closest(row, xy)
+    near = closest(row, rows)
     dnear= rows.distance(row,near,xy)
     far  = rows.furthest(row,xy)
     dfar = rows.distance(row,far,xy)
@@ -78,3 +79,4 @@ def _dists():
 
 oks()
 
+# nb

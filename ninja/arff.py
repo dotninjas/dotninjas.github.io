@@ -49,6 +49,9 @@ class Arff:
     i.reads(f)
   def at(i,x,txt):
     return re.match('^[ \t]*@'+txt,x,re.IGNORECASE)
+  def __iadd__(i,row):
+    i.rows += row
+    return i
   def reads(i,f):
     attributes=[]
     data = False
@@ -58,8 +61,8 @@ class Arff:
         if line != "":
             if data:
               line = map(atom, line.split(","))
-              i.rows += i.prep(Row(x= line[:-1],
-                                   y=[line[-1]]))
+              i += i.prep(Row( x= line[:-1],
+                               y=[line[-1]]))
             else:
               line = line.split()
               if i.at(line[0],'RELATION'):

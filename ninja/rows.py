@@ -357,15 +357,15 @@ class Rows:
     if i.keep:
       i._all.append(row)
     return i
-  def closest(i, r1,xy= xx, init= 10**32, better= less):
-    delta,out = init, None
-    for r2 in i._all:
-      if id(r1) != id(r2):
-        tmp = xy(i).distance(r1,r2)
-        if better(tmp, delta):
-           delta,out = tmp,r2
-    return out 
-  def furthest(i,r, xy=xx): 
-    return i.closest(r, xy, -1, more)
-  def distance(i, r1,r2, xy=xx):
-    return xy(i).distance(r1,r2)
+
+def closest(r1, rows, logs, init= 10**32, better= less):
+  delta,out = init, None
+  for r2 in rows:
+    if id(r1) != id(r2):
+      tmp = logs.distance(r1,r2)
+      if better(tmp, delta):
+        delta,out = tmp,r2
+  return out 
+
+def furthest(r, rows, xy=xx): 
+  return closest(r, rows,  -1, more)
