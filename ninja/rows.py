@@ -360,7 +360,7 @@ class Rows:
       i._all.append(row)
     return i
   def knn(i,r1,k=1, rows=None):
-    syms = Sym(map(lambda z: z.y[0],
+    syms = Sym(map(lambda row: row.y[0],
                    i.nearestk(r1, k=k, xy=xx, rows=None)))
     return syms.mode
   def nearestk(i,r1,k=1,xy=xx, rows=None) :
