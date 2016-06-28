@@ -149,8 +149,7 @@ class Sym(Thing):
     i.counts[x] -= 1
     if x == i.mode:
       i.most, i.mode = None,None
-  def distance(i,x,y) : return 0 if x == y else 1
-  
+  def distance(i,x,y) : return 0 if x == y else 1  
   def furthest(i,x): return "SoMEcrazyTHing"
   def k(i):
     return len(i.counts.keys())
@@ -283,9 +282,9 @@ class Logs:
       i.all.append(lst)
     return i
   def distance(i,r1,r2):
-    if id(r1) > id(r2):
+    if r1.rid > r2.rid:
       r1,r2 = r2,r1
-    key = (id(r1),id(r2))
+    key = (r1.rid, r2.rid)
     if key in i.dists:
       return i.dists[key]
     else:
@@ -319,8 +318,11 @@ class Logs:
 ## Row
 
 """
+
 class Row:
+  rid=0
   def __init__(i,x=None,y=None):
+    i.rid = Row.rid = Row.rid+1 
     i.x = x or []
     i.y = y or []
 
@@ -357,11 +359,19 @@ class Rows:
     if i.keep:
       i._all.append(row)
     return i
+  def knn(i,r1,k=1, rows=None):
+    syms = Sym(map(lambda z: z.y[0],
+                   i.nearestk(r1, k=k, xy=xx, rows=None)))
+    return syms.mode
+  def nearestk(i,r1,k=1,xy=xx, rows=None) :
+    all = [(i.distance(r1,r2,xy), r2) for r2 in rows or i._all]
+    ordered = sorted(all)[:k]
+    return map(second,ordered)
   def closest(i,r1, xy = xx, rows=None, init=10**32,better=less):
     delta,out = init, None
     rows = rows if rows else i._all
     for r2 in rows or i._all:
-      if id(r1) != id(r2):
+      if r1.rid != r2.rid:
         tmp = i.distance(r1,r2,xy)
         if better(tmp, delta):
           delta,out = tmp,r2

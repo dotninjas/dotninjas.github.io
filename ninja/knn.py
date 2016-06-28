@@ -7,25 +7,30 @@
 """
 
 from __future__ import division,print_function
-import sys
+import sys,argparse
 sys.dont_write_bytecode=True
 from arff import *
 from abcd import *
 
-def knn(train,tests, xy=xx):
+def knn(train,tests, k=1):
   abcd=Abcd("train","raw")
   train = Arff(train).reads().rows
   for test in  Arff(tests).read1():
-    near = train.closest(test,xy)
-    print("")
-    print(id(near)==id(test))
-    print(xy(near))
-    print(xy(test))
-    predicted = near.y[0]
-    actual    = test.y[0]
-    abcd(actual, predicted)
-  return abcd
-    
-    
-    
-    
+    near         = train.knn(test, k=k)
+    abcd(actual  = test.y[0],
+         predict = near)
+  return abcd.report()
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(
+    description="kNearest neighbor")
+  p=parser.add_argument
+  p("-k",   type=int,
+    default=1, metavar='k',
+    help="use k nearest neighbors")
+  p("-t",type=str, metavar="File",default='train.arff',
+    help="training set (arff file)")
+  p("-T",type=str, metavar="File",default='test.arff',
+    help="test set (arff file)")
+  args = parser.parse_args()
+  knn(args.t, args.T, args.k)

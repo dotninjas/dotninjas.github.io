@@ -39,6 +39,17 @@ copy=copy.deepcopy
 def less(x,y) : return x < y
 def more(x,y) : return x > y
 
+
+"""__________________________________________________
+
+## Stabndard lst tricks
+
+"""
+
+def first(x)  : return x[0]
+def second(x) : return x[1]
+def last(x)   : return x[-1]
+
 """___________________________________________________
 
 ## Printing tricks
