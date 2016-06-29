@@ -4,8 +4,8 @@ sys.dont_write_bytecode=True
 
 def less(x,y): return x < y
 def more(x,y): return x > y
-def max(x,y):  return x if x>y else y
-def min(x,y):  return x if x<y else y
+def max(x,y) : return x if x>y else y
+def min(x,y) : return x if x<y else y
 
 def atom(x):
   try: return float(x),Num
@@ -81,7 +81,7 @@ class Rows:
       if better(x,y): betters += 1
       if worse(x,y) : return False
     return betters > 0
-  def cdom(i,x, y,space,bigEnough=0.01):
+  def cdom(i,x, y,bigEnough=0.01):
     ee = 2.718281828459
     def w(better):
       return -1 if better == less else 1
@@ -98,7 +98,6 @@ class Rows:
     l1 = loss(x,y)
     l2 = loss(y,x)
     return l1 < l2 if abs(l1 - l2) >= bigEnough else False
-
 
 def bdom(x,y,rows): return rows.bdom(x,y)
 def cdom(x,y,rows): return rows.cdom(x,y)
@@ -125,7 +124,8 @@ def sway( population, rows, better= cdom,
        lst += [( a*a + c*c - b*b )/( 2*c+ 0.0001 ),x] # cosine rule
     items = map(lambda z:z[1],
                 sorted(items)) # sorted by 'd'
-    return west, east, items[:middle], items[middle:] 
+    return west, east, items[:middle], items[middle:]
+  # --------
   enough= max(len(population)**n, least) # why 20? central limit theorem
   return cluster(population, [])
   
