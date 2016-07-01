@@ -30,18 +30,26 @@ but realistically, not deliver numbers that are
 orders of magnitude different
 """
 
-def same(x)  : return x
-def less(x,y): return x < y
-def more(x,y): return x > y
-def max(x,y) : return x if x>y else y
-def min(x,y) : return x if x<y else y
-def any(lst) : return random.choose(list)
-def rseed(s) : random.seed(s or THE.seed)
+def same(x)  :
+  return x
+def less(x,y):
+  return x < y
+def more(x,y):
+  return x > y
+def max(x,y) :
+  return x if x>y else y
+def min(x,y) :
+  return x if x<y else y
+def any(lst) :
+  return random.choose(list)
+def rseed(s) :
+  random.seed(s or THE.seed)
 
 def atom(x):
   try: return float(x),Num
   except ValueError: return x,Sym
   
+
 class Row(object):
   rid = 0
   def __init__(i,lst):
@@ -50,9 +58,7 @@ class Row(object):
   def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
-
-
-#---------    
+ 
  
 class Model(Row):
   def __init__(i.lst):
@@ -72,6 +78,7 @@ class Model(Row):
     "Rewritten by subclass"
     return i
   
+
 class Summary: pass
 
 class Num(Summary):
