@@ -12,14 +12,6 @@ def help3(txt,**d):
               default=val,help=txt + ("; e.g. %s" % val),
               metavar=str(t.__name__),type=t)
 
-def args(prog, description,epilog,*lst):
-  parser = argparse.ArgumentParser(prog=prog,
-             formatter_class=argparse.RawDescriptionHelpFormatter,
-             description= description,epilog=epilog)
-  for key, rest in lst[3:]:   
-    parser.add_argument(key,**rest)
-  return parser.parse_args()
-
 THE=args("sway: Data mining+optimization",
   "(C) 2016, tim@menzies.us MIT, v2",
 """
@@ -38,6 +30,14 @@ that are orders of magnitude different.
   help3("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
   help3("SWAY's smallest size, leaf clusters",      swayStop   = 20)
 )
+
+def args(prog, description,epilog,*lst):
+  parser = argparse.ArgumentParser(prog=prog,
+             formatter_class=argparse.RawDescriptionHelpFormatter,
+             description= description,epilog=epilog)
+  for key, rest in lst[3:]:   
+    parser.add_argument(key,**rest)
+  return parser.parse_args()
 
 def same(x)  :
   return x
