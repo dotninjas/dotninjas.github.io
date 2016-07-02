@@ -3,10 +3,33 @@ from __future__ import division,print_function
 import sys,re,random,argparse
 sys.dont_write_bytecode=True
 
+###############################################################################
+# Copyright (c) 2016 tim@menzies.us
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+###############################################################################
+
 help = lambda : [
   "sway: Data mining+optimization",
   "(C) 2016, tim@menzies.us MIT, v2",
 """
+"And He shall have sway and dominion over all the world." -- Eddie Izzard 
+
 Implements incremental sway (O(N), not O(3N)).
 
 For simplicity's sake, there is no normalization on objectives.  Hence, the eval
@@ -14,32 +37,56 @@ functions need to be well-behaved i.e. ideally 0..1 or, more realistically, (a)
 all goals are to be minimized; (b) the eval function does not deliver numbers
 that are orders of magnitude different.
 """,
-     help3("random number seed",                       seed       = 61409389),
-     help3("keep at most, say, 256 samples",           samples    = 256), 
-     help3("continous domination bigger",              cdomBigger = 0.01),
-     help3("kind of model class",                      kind       = "Row"),
-     help3("SWAY projections bigger",                  swayBigger = 0.01),
-     help3("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
-     help3("SWAY's smallest size, leaf clusters",      swayStop   = 20)]
+  help3("random number seed",                       seed       = 61409389),
+  help3("keep at most, say, 256 samples",           samples    = 256), 
+  help3("continous domination bigger",              cdomBigger = 0.01),
+  help3("kind of model class",                      kind       = "Row"),
+  help3("SWAY projections bigger",                  swayBigger = 0.01),
+  help3("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
+  help3("SWAY's smallest size, leaf clusters",      swayStop   = 20),
+  help3("Enable unit tests",                        tests      = False) ]
 
 def help3(txt,**d):
-    for key,val in d.items():
-      t=str
-      if isinstance(val,int): t= int
-      if isinstance(val,float): t= float
-    return  "--" + key,dict(
-                     default=val,help=txt + ("; e.g. %s" % val),
-                     metavar=str(t.__name__),type=t)
+  for key,val in d.items():
+    key = "--" + key
+    t=str
+    if isinstance(val,int): t= int
+    if isinstance(val,float): t= float
+    if val is False:
+      return key,dict(help=txt, action="store_true")
+    else:
+      return key,dict(default=val,help=txt + ("; e.g. %s" % val),
+                      metavar=str(t.__name__),type=t)
 
 def options(prog, description,epilog,*lst):
-  parser = argparse.ArgumentParser(prog=prog,
-                                   formatter_class=argparse.RawDescriptionHelpFormatter,
-                                   description= description,epilog=epilog)
-  for key, rest in lst[3:]:   
+  parser = argparse.ArgumentParser(prog = prog,
+              formatter_class = argparse.RawDescriptionHelpFormatter,
+              description = description,epilog=epilog)
+  for key, rest in lst:   
     parser.add_argument(key,**rest)
   return parser.parse_args()
 
-The=options(*help())
+THE = options(*help())
+
+### LIB ########################################################################
+PASS=FAIL=0
+def ok(f=None):
+  global PASS, FAIL
+  if THE.tests:
+    if not f:
+        print("\n# PASS= %s FAIL= %s %%PASS = %s%%"  % (
+               PASS, FAIL, int(round(PASS*100/(PASS+FAIL+0.001)))))
+    else:  
+        try:
+            print("\n-----| %s |-----------------------" % f.__name__)
+            if f.__doc__:
+                print("# "+ re.sub(r'\n[ \t]*',"\n# " + f.__doc__)+"\n")
+            f()
+            PASS += 1
+        except Exception,_:
+            FAIL += 1
+            print("# XXXXXX Fail",f.__name__)
+  return f
 
 def same(x)  :
   return x
@@ -56,10 +103,12 @@ def any(lst) :
 def rseed(s) :
   random.seed(s or THE.seed)
 
-def atom(x):
+def atom(x)  :
   try: return float(x),Num
   except ValueError: return x,Sym
-  
+      
+
+### Rows  ######################################################################
 class Row(object):
   rid = 0
   def __init__(i,lst):
@@ -88,6 +137,7 @@ class Model(Row):
     return i
   
 
+### Columns  ###################################################################
 class Summary: pass
 
 class Num(Summary):
@@ -156,19 +206,20 @@ class Thing(Summary):
       i.samples.add(x)
     return x
 
+
 class Sample:
   def __init__(i, init=[]):
     i.n, i.some, i.ordered = 0, [], False
     map(i.add,init)
   def add(i,x):
-    i.ordered = False
     i.n += 1
     now  = len(i.some)
     if now < THE.samples:
       i.some += [x]
     elif r() <= now/i.n:
       i.some[ int(r() * now) ]= x
-  
+      
+### Tables #####################################################################      
 class Table:
   KINDS = {'Row':Row,'Model':Model}
   MORE  = ">"
@@ -220,6 +271,19 @@ class Table:
   def label1(data,row):
     return row # usually rewritten by subclass
 
+
+def file2table(file):
+  tbl= Table()
+  src = open(file) if file else  sys.stdin
+  for line in src:
+    row = map(lambda z:z.strip(),
+              line.split(","))
+    if len(row)> 1:
+      tbl(row)
+  return tbl
+  
+
+### Optimizers #################################################################        
 def bdom(x, y, tbl):
   x= label(tbl, x)
   y= label(tbl, y)
@@ -284,27 +348,15 @@ def sway( population, tbl, better= bdom) :
   # --------
   return cluster(population, []),redo
 
-def file2table(file):
-  tbl= Table()
-  src = open(file) if file else  sys.stdin
-  for line in src:
-    row = map(lambda z:z.strip(),
-              line.split(","))
-    if len(row)> 1:
-      tbl(row)
-  return tbl
 
-def _demo1():
-  
-  tbl = file2table()
-  for row in tbl.rows:
-    print("")
-    #print(row)
-    cl = tbl.closest(row)
-    far= tbl.furthest(row)
-    print(tbl.distance(row,cl))
-    print(tbl.distance(row,far))
-  for pos,row1 in enumerate(tbl.rows):
-    for  row2 in tbl.rows[pos:]:
-      print(bdom(row1,row2,tbl))
-    
+### Tests #################################################################        
+
+@ok
+def f1():
+  assert False
+
+@ok
+def f2():
+  assert False
+
+ok()
