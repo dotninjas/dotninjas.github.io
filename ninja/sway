@@ -171,8 +171,8 @@ class Sample:
   
 class Table:
   KINDS = {'Row':Row,'Model':Model}
-  LOVE  = ">"
-  HATE  = "<"
+  MORE  = ">"
+  LESS  = "<"
   KLASS = "="
   SKIP  = "-"
   def __init__(i):
@@ -201,8 +201,8 @@ class Table:
           i.gets += [get]
           col     = Thing( len(i.cols) , cell)    
           i.cols += [col]
-          if   cell[0] == Table.LOVE  : i.objs  += [(col,more)]
-          elif cell[0] == Table.HATE  : i.objs  += [(col,less)]
+          if   cell[0] == Table.MORE  : i.objs  += [(col,more)]
+          elif cell[0] == Table.LESS  : i.objs  += [(col,less)]
           elif cell[0] == Table.KLASS : i.klass += [col]
           else                        : i.decs  += [col]
           #---------------------------------------
