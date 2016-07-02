@@ -3,32 +3,41 @@ from __future__ import division,print_function
 import sys,re,random,argparse
 sys.dont_write_bytecode=True
 
-ABOUT=[
-  "sway: Data mining+optimization",
-  "(C) 2016, tim@menzies.us MIT,v2",
-  ("--seed",   61409389,   int,   "int", "random number seed"),
-  ("--samples",     256,   int,   "int", "keep at most, say, 256 samples"),
-  ("--cdomBigger", 0.01, float, "float", "continous domination bigger; e.g. 1.01"),
-  ("--kind",      "Row",   str,   "str", "kind of model class for each Row"),
-  ("--swayBigger", 1.01, float, "float", "SWAY projections bigger; e.g. 1.01"),
-  ("--swayCull",    0.5,   int, "float", "SWAY's smallest population size; e.g. 0.5"),
-  ("--swayStop",     20,   int,   "int", "SWAY's smallest size, leaf clusters; e.g. 20")
-] 
-
-def cmdline(lst):
-  parser = argparse.ArgumentParser(prog=lst[0], description= lst[1])
-  for (key, d, t, m,h,) in lst[2:]:
-    parser.add_argument(key,default=d,type=t,metavar=m,help=h)
+def options():
+  def help(txt,**d):
+    for key,val in d.items(): return (key,val,txt + ("; e.g. %s" % val))
+  #-------------------------------------------------------------------
+  
+  helps=["sway: Data mining+optimization",
+         "(C) 2016, tim@menzies.us MIT, v2",
+  """
+  Implements incremental sway (O(N), not O(3N)). 
+  For simplicity's sake, there is no normalization on objectives. 
+  Hence, the eval functions need to be well-behaved i.e. ideally 
+  0..1 or, more realistically, (a) all goals are to be minimized;
+  (b) the eval function does not deliver numbers that are orders 
+  of magnitude different.
+  """,
+  help("random number seed",                       seed       = 61409389),
+  help("keep at most, say, 256 samples",           samples    = 256), 
+  help("continous domination bigger",              cdomBigger = 0.01),
+  help("kind of model class",                      kind       = "Row"),
+  help("SWAY projections bigger",                  swayBigger = 0.01),
+  help("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
+  help("SWAY's smallest size, leaf clusters",      swayStop   = 20)]
+  
+  #-------------------------------------------------------------------
+  parser = argparse.ArgumentParser(prog=helps[0],
+                                   description= helps[1],epilog=helps[2])
+  for (key, d, h,) in helps[3:]:
+    t=str
+    if isinstance(d,int): t= int
+    if isinstance(d,float): t= float
+    parser.add_argument("--" + key,
+                        metavar= str(t.__name__), default=d,type=t, help=h)
   return parser.parse_args()
 
-THE = cmdline(ABOUT)
-
-"""
-Warning: no normalization on objectives. eval
-functions need to be well-behaved i.e. ideally 0..1
-but realistically, not deliver numbers that are
-orders of magnitude different
-"""
+THE=options()
 
 def same(x)  :
   return x
@@ -61,11 +70,11 @@ class Row(object):
  
  
 class Model(Row):
-  def __init__(i.lst):
+  def __init__(i,lst):
     super(Model, i).__init__(lst)
     i.labelled=False
   def label(i,tbl,cost=1):
-     """Row labels are cached back into the row. So labelling
+    """Row labels are cached back into the row. So labelling
         N times only incur a single labelling cost."""
     if not i.labelled:
       i.label1()
@@ -175,11 +184,17 @@ class Table:
     yield [col.txt for cols in i.cols]
     for row in i.rows:
       yield row.contents
-  def __call__(i,row):
+  def __call__(i,row,names=True):
     if i.cols:
       kind    = Table.kinds[THE.kind]
-      row     = [i.cols[put].add(row[get]) for put,get in enumerate(i.gets)])
+      row     = [i.cols[put].add(row[get]) for put,get in enumerate(i.gets)]
       i.rows += [ kind(row) ]
+    elif not names:
+      for get,_ in enumerate(row):
+        i.gets += [get]
+        col = Thing(len(i.cols), "col"+str(get))
+        i.cols += [col]
+        i.decs += [col]
     else:
       for get,cell in enumerate(row):
         if cell[0] != Table.SKIP:
@@ -193,6 +208,8 @@ class Table:
           #---------------------------------------
           for col,_ in i.objs  : i.dep   += [col]
           for col   in i.klass : i.dep   += [col]
+       
+              
   def distance(i,r1,r2,f=2):
     inc,n = 0, 10**-32
     for col in i.decs:
@@ -233,38 +250,38 @@ def cdom(x, y, tbl, ee= 2.718281828459):
   return l1 < l2 if abs(l1 - l2)/l1 >= THE.cdomBigger else False
 
 def sway( population, tbl, better= bdom) :
-   def cluster(items, out):
-    if len(items) < stop: 
+  def cluster(items, out):
+    if len(items) < max(len(population)**THE.swayCull, THE.swayStop):
       out.append(items) 
     else:
-      west, east, wests, easts = split(items, int(len(items)/2)) 
-    if not better(west,east,tbl): cluster( easts, out )  
-    if not better(east,west,tbl): cluster( wests, out )
+      west, east, left, right = split(items, int(len(items)/2)) 
+    if not better(east,west,tbl): cluster( left, out )
+    if not better(west,east,tbl): cluster( right, out )  
     return out
- 
-  def split(items, mid,west=None,east=None):
+  
+  def split(items, mid,west=None, east=None):
     cosine = lambda a,b,c: ( a*a + c*c - b*b )/( 2*c+ 0.0001 )
     west   = west or any(items)
     east   = east or any(items)
     while east.rid  == west.rid:
       east = any(items)
-    c = tbl.distance(west, east)
-    xs = {}
+    c      = tbl.distance(west, east)
+    cBigger= c*(1 + THE.swayBigger)
+    xs     = {}
     for item in items:
        a = tbl.distance(item, west)
        b = tbl.distance(item, east)
        x = xs[ item.rid ] = cosine(a,b,c) # cosine rule
-       if a > c * THE.swayBigger:
+       if a > cBigger:
          redo += 1
          return split(items, mid, item, east)
-       if b > c * THE.swayBigger:
+       if b > cBigger:
          redo += 1
          return split(items, mid, west, item)   
     redo  = 0
     items = sorted(items, key= lambda item: xs[ item.rid ]) # sorted by 'x'
     return west, east, items[:mid], items[mid:]
   # --------
-  stop= max(len(population)**THE.swayCull, THE.swayStop)
   return cluster(population, []),redo
 
 def file2table(file):
@@ -278,6 +295,7 @@ def file2table(file):
   return tbl
 
 def _demo1():
+  
   tbl = file2table()
   for row in tbl.rows:
     print("")
@@ -290,14 +308,3 @@ def _demo1():
     for  row2 in tbl.rows[pos:]:
       print(bdom(row1,row2,tbl))
     
-
-#        def furthest(i,r1, better= more, init= 0):
-#    most,out = init, None
-#    for r2 in i.rows:
-#      if id(r1) != id(r2):
-#        tmp = i.distance(r1,r2)
-#        if better(tmp, most):
-#          most,out = tmp,r2
-#    return out
-#  def closest(i,r1):
-#    return i.furthest(r1, better= less, init= 10**32)
