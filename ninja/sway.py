@@ -14,6 +14,7 @@ def help3(txt,**d):
 
 def args(prog, description,epilog,*lst):
   parser = argparse.ArgumentParser(prog=prog,
+             formatter_class=argparse.RawDescriptionHelpFormatter,
              description= description,epilog=epilog)
   for key, rest in lst[3:]:   
     parser.add_argument(key,**rest)
@@ -21,14 +22,14 @@ def args(prog, description,epilog,*lst):
 
 THE=args("sway: Data mining+optimization",
   "(C) 2016, tim@menzies.us MIT, v2",
-  """
-  Implements incremental sway (O(N), not O(3N)). 
-  For simplicity's sake, there is no normalization on objectives. 
-  Hence, the eval functions need to be well-behaved i.e. ideally 
-  0..1 or, more realistically, (a) all goals are to be minimized;
-  (b) the eval function does not deliver numbers that are orders 
-  of magnitude different.
-  """,
+"""
+Implements incremental sway (O(N), not O(3N)).
+
+For simplicity's sake, there is no normalization on objectives.  Hence, the eval
+functions need to be well-behaved i.e. ideally 0..1 or, more realistically, (a)
+all goals are to be minimized; (b) the eval function does not deliver numbers
+that are orders of magnitude different.
+""",
   help3("random number seed",                       seed       = 61409389),
   help3("keep at most, say, 256 samples",           samples    = 256), 
   help3("continous domination bigger",              cdomBigger = 0.01),
