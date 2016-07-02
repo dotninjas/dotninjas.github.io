@@ -3,13 +3,24 @@ from __future__ import division,print_function
 import sys,re,random,argparse
 sys.dont_write_bytecode=True
 
-def options():
-  def help(txt,**d):
-    for key,val in d.items(): return (key,val,txt + ("; e.g. %s" % val))
-  #-------------------------------------------------------------------
-  
-  helps=["sway: Data mining+optimization",
-         "(C) 2016, tim@menzies.us MIT, v2",
+def help3(txt,**d):
+  for key,val in d.items():
+    t=str
+    if isinstance(val,int): t= int
+    if isinstance(val,float): t= float
+    return  "--" + key,dict(
+              default=val,help=txt + ("; e.g. %s" % val),
+              metavar=str(t.__name__),type=t)
+
+def args(prog, description,epilog,*lst):
+  parser = argparse.ArgumentParser(prog=prog,
+             description= description,epilog=epilog)
+  for key, rest in lst[3:]:   
+    parser.add_argument(key,**rest)
+  return parser.parse_args()
+
+THE=args("sway: Data mining+optimization",
+  "(C) 2016, tim@menzies.us MIT, v2",
   """
   Implements incremental sway (O(N), not O(3N)). 
   For simplicity's sake, there is no normalization on objectives. 
@@ -18,26 +29,14 @@ def options():
   (b) the eval function does not deliver numbers that are orders 
   of magnitude different.
   """,
-  help("random number seed",                       seed       = 61409389),
-  help("keep at most, say, 256 samples",           samples    = 256), 
-  help("continous domination bigger",              cdomBigger = 0.01),
-  help("kind of model class",                      kind       = "Row"),
-  help("SWAY projections bigger",                  swayBigger = 0.01),
-  help("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
-  help("SWAY's smallest size, leaf clusters",      swayStop   = 20)]
-  
-  #-------------------------------------------------------------------
-  parser = argparse.ArgumentParser(prog=helps[0],
-                                   description= helps[1],epilog=helps[2])
-  for (key, d, h,) in helps[3:]:
-    t=str
-    if isinstance(d,int): t= int
-    if isinstance(d,float): t= float
-    parser.add_argument("--" + key,
-                        metavar= str(t.__name__), default=d,type=t, help=h)
-  return parser.parse_args()
-
-THE=options()
+  help3("random number seed",                       seed       = 61409389),
+  help3("keep at most, say, 256 samples",           samples    = 256), 
+  help3("continous domination bigger",              cdomBigger = 0.01),
+  help3("kind of model class",                      kind       = "Row"),
+  help3("SWAY projections bigger",                  swayBigger = 0.01),
+  help3("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
+  help3("SWAY's smallest size, leaf clusters",      swayStop   = 20)
+)
 
 def same(x)  :
   return x
@@ -58,7 +57,6 @@ def atom(x):
   try: return float(x),Num
   except ValueError: return x,Sym
   
-
 class Row(object):
   rid = 0
   def __init__(i,lst):
@@ -67,8 +65,7 @@ class Row(object):
   def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
- 
- 
+
 class Model(Row):
   def __init__(i,lst):
     super(Model, i).__init__(lst)
