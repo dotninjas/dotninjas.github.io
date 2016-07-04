@@ -27,9 +27,10 @@ sys.dont_write_bytecode=True
 help = lambda : [
 """
 (C) 2016, tim@menzies.us MIT, v2
-Useful routines for building simple data miners and optimizers""",
-"""
-"And He shall have sway and dominion over all the world." -- Eddie Izzard 
+Useful routines for building simple data miners and optimizers
+""","""
+"And He shall have sway and dominion over all the world." 
+-- Wolf (a.k.a. Eddie Izzard) 
 
 Implements incremental sway (O(N), not O(3N)).
 
@@ -38,17 +39,18 @@ functions need to be well-behaved i.e. ideally 0..1 or, more realistically, (a)
 all goals are to be minimized; (b) the eval function does not deliver numbers
 that are orders of magnitude different.
 """,
-  elp("-s", "random number seed",                       seed       = 61409389),
-  elp("-n", "keep at most, say, 256 samples",           samples    = 256), 
-  elp("-c", "continous domination bigger",              cdomBigger = 0.01),
-  elp("-K", "kind of model class",                      kind       = ["Row", "Model"]),
-  elp("-b", "SWAY projections bigger",                  swayBigger = 0.01),
-  elp("-C", "SWAY's target population = pop^swayCull",  swayCull   = 0.5),
-  elp("-S", "SWAY's smallest size, leaf clusters",      swayStop   = 20),
-  elp("-N", "Enable distance normalization",            normalize  = False),
-  elp("-X", "Enable unit testing",                      tests      = False)
-]
-
+  elp("-C", "SWAY's target population = pop^swayCull", swayCull  = 0.5),
+  elp("-S", "SWAY's smallest size, leaf clusters",     swayStop  = 20),
+  elp("-b", "SWAY projections bigger",                 swayBigger= 0.01),
+  elp("-K", "kind of model class",                     kind      = ["Row", "Model"]),
+  elp("-N", "Enable distance normalization",           normalize = False),
+  elp("-X", "run unit tests",                          tests     = False),
+  elp("-c", "continous domination bigger",             cdomBigger= 0.01),
+  elp("-n", "keep at most, say, 256 samples",          samples   = [256,128,512,1024]),
+  elp("-s", "random number seed",                      seed      = 61409389),
+  elp("-t", "training data (arff format",              train     = "train.csv"),
+  elp("-T", "testing data (csv format). If null, do xval on train data.",
+                                                       test      = "test.csv")]
 def elp(flag,h, **d):
   def elp1():
     if val is False        : return dict(help=h, action="store_true")
