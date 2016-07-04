@@ -726,6 +726,58 @@ Edot="/tmp/edot$$"
 e() { "$Ed" -q -l "$Edot" $* &  # $Edot defined below 
 }
 
+Vdot="/tmp/vdot$$"
+
+v() { vim  -u "$Vdot" $*  
+}
+cat << 'EOF' > "$Vdot"
+set backupdir-=.
+set backupdir^=~/tmp,/tmp
+
+"ascii mouse
+set mouse=a
+"place buffer name into window title
+set title
+"show line numbers
+set number
+"cycling through buffers
+map <C-n> :exe  ":buf ".((bufnr("%") % bufnr("$"))+1)<CR>
+" auto-change directory to that of the current buffer
+autocmd BufEnter * cd %:p:h
+" Shows the matching bracket when entering expressions
+" (you'll never miss one again!)
+set showmatch
+set matchtime=15
+"pretty colors
+set background=light
+set syntax=on
+syntax enable
+"" Incremental search
+" (as you type in the search query, it will show you
+" whether your query currently matches anything)
+set ignorecase
+set incsearch
+set smartcase
+" source code indenting
+set smarttab
+set smartindent
+set tabstop=2
+set shiftwidth=2
+set expandtab ts=2 sw=2 ai
+
+" Help for viminfo is at:  :he 'viminfo'
+"   '10  : marks will be remembered for up to 10 previously edited files
+"   "100 : will save up to 100 lines for each register
+"   :20  : up to 20 lines of command-line history will be remembered
+"   %    : saves and restores the buffer list
+"   n... : where to save the viminfo files
+"set viminfo='10,\"100,:20,%,n~/.viminfo
+"autocmd BufReadPost * if line("'\"") > 0|if line("'\"") <=
+"line("$")|exe("norm '\"")|else|exe "norm $"|endif|endif
+"set t_ti= t_te=
+colors elflord
+EOF
+
 cat << 'EOF' > "$Edot"
 (progn
 

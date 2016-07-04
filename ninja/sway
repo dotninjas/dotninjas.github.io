@@ -25,8 +25,9 @@ sys.dont_write_bytecode=True
 ###############################################################################
 
 help = lambda : [
-  "sway: Data mining+optimization",
-  "(C) 2016, tim@menzies.us MIT, v2",
+"""
+(C) 2016, tim@menzies.us MIT, v2
+Useful routines for building simple data miners and optimizers""",
 """
 "And He shall have sway and dominion over all the world." -- Eddie Izzard 
 
@@ -37,56 +38,59 @@ functions need to be well-behaved i.e. ideally 0..1 or, more realistically, (a)
 all goals are to be minimized; (b) the eval function does not deliver numbers
 that are orders of magnitude different.
 """,
-  help3("random number seed",                       seed       = 61409389),
-  help3("keep at most, say, 256 samples",           samples    = 256), 
-  help3("continous domination bigger",              cdomBigger = 0.01),
-  help3("kind of model class",                      kind       = "Row"),
-  help3("SWAY projections bigger",                  swayBigger = 0.01),
-  help3("SWAY's target population = pop^swayCull",  swayCull   = 0.5),
-  help3("SWAY's smallest size, leaf clusters",      swayStop   = 20),
-  help3("Enable unit tests",                        tests      = False) ]
+  elp("-s", "random number seed",                       seed       = 61409389),
+  elp("-n", "keep at most, say, 256 samples",           samples    = 256), 
+  elp("-c", "continous domination bigger",              cdomBigger = 0.01),
+  elp("-K", "kind of model class",                      kind       = ["Row", "Model"]),
+  elp("-b", "SWAY projections bigger",                  swayBigger = 0.01),
+  elp("-C", "SWAY's target population = pop^swayCull",  swayCull   = 0.5),
+  elp("-S", "SWAY's smallest size, leaf clusters",      swayStop   = 20),
+  elp("-N", "Enable distance normalization",            normalize  = False),
+  elp("-X", "Enable unit testing",                      tests      = False)
+]
 
-def help3(txt,**d):
-  for key,val in d.items():
-    key = "--" + key
-    t=str
-    if isinstance(val,int): t= int
-    if isinstance(val,float): t= float
-    if val is False:
-      return key,dict(help=txt, action="store_true")
-    else:
-      return key,dict(default=val,help=txt + ("; e.g. %s" % val),
-                      metavar=str(t.__name__),type=t)
+def elp(flag,h, **d):
+  def elp1():
+    if val is False        : return dict(help=h, action="store_true")
+    if isinstance(val,list): return dict(help=h, choices=val,          default=default, metavar=m ,type=t)
+    else                   : return dict(help=h + ("; e.g. %s" % val), default=default, metavar=m, type=t)
+  key,val = d.items()[0]
+  default = val[0] if isinstance(val,list) else val
+  m,t = "S",str
+  if isinstance(default,int)  : m,t= "I",int
+  if isinstance(default,float): m,t= "F",float
+  return flag,"--" + key, elp1()
 
-def options(prog, description,epilog,*lst):
-  parser = argparse.ArgumentParser(prog = prog,
-              formatter_class = argparse.RawDescriptionHelpFormatter,
-              description = description,epilog=epilog)
-  for key, rest in lst:   
-    parser.add_argument(key,**rest)
+def options(before, after, *lst):
+  parser = argparse.ArgumentParser(epilog=after, description = before,
+              formatter_class = argparse.RawDescriptionHelpFormatter)
+  for flag, key, rest in lst:
+    parser.add_argument(flag, key,**rest)
   return parser.parse_args()
 
 THE = options(*help())
+print(THE.normalize, THE.seed)
 
 ### LIB ########################################################################
 PASS=FAIL=0
-def ok(f=None):
+def oks():
   global PASS, FAIL
   if THE.tests:
-    if not f:
-        print("\n# PASS= %s FAIL= %s %%PASS = %s%%"  % (
-               PASS, FAIL, int(round(PASS*100/(PASS+FAIL+0.001)))))
-    else:  
-        try:
-            print("\n-----| %s |-----------------------" % f.__name__)
-            if f.__doc__:
-                print("# "+ re.sub(r'\n[ \t]*',"\n# " + f.__doc__)+"\n")
-            f()
-            PASS += 1
-        except Exception,_:
-            FAIL += 1
-            print("# XXXXXX Fail",f.__name__)
-  return f
+    print("\n# PASS= %s FAIL= %s %%PASS = %s%%"  % (
+          PASS, FAIL, int(round(PASS*100/(PASS+FAIL+0.001)))))
+
+def ok(f):
+  global PASS, FAIL
+  if THE.tests:
+    try:
+      print("\n-----| %s |-----------------------" % f.__name__)
+      if f.__doc__:
+        print("# "+ re.sub(r'\n[ \t]*',"\n# " + f.__doc__)+"\n")
+      f()
+      PASS += 1
+    except Exception,_:
+      FAIL += 1
+      print("# XXXXXX Fail",f.__name__)
 
 def same(x)  :
   return x
@@ -156,8 +160,10 @@ class Num(Summary):
     i.mu  = max(0,i.mu - delta/i.n)
     i.m2  = max(0,i.m2 - delta*(x - i.mu))
   def norm(i,x):
-    tmp= (x - i.lo) / (i.hi - i.lo + 10**-32)
-    return min(1, max(0,tmp))
+    if THE.normalize:
+      tmp= (x - i.lo) / (i.hi - i.lo + 10**-32)
+      return min(1, max(0,tmp))
+    return x
   def dist(i,x,y):
     return i.norm(x) - i.norm(y)
   def furthest(i,x) :
@@ -221,10 +227,11 @@ class Sample:
       
 ### Tables #####################################################################      
 class Table:
-  KINDS = {'Row':Row,'Model':Model}
+  KIND  = {'Row':Row, 'Model':Model }[THE.kind]
   MORE  = ">"
   LESS  = "<"
   KLASS = "="
+  SYM   = "!"
   SKIP  = "-"
   def __init__(i):
     i.rows = []
@@ -235,20 +242,14 @@ class Table:
     yield [col.txt for cols in i.cols]
     for row in i.rows:
       yield row.contents
-  def __call__(i,row,names=True):
+  def __call__(i,row):
     if i.cols:
-      kind    = Table.kinds[THE.kind]
-      row     = [i.cols[put].add(row[get]) for put,get in enumerate(i.gets)]
-      i.rows += [ kind(row) ]
-    elif not names:
-      for get,_ in enumerate(row):
-        i.gets += [get]
-        col = Thing(len(i.cols), "col"+str(get))
-        i.cols += [col]
-        i.decs += [col]
+      row     = [i.cols[put].add(row[get])
+                 for put,get in enumerate(i.gets)]
+      i.rows += [ Table.KIND(row) ]
     else:
       for get,cell in enumerate(row):
-        if cell[0] != Table.SKIP:
+        if cell[-1] != Table.SKIP:
           i.gets += [get]
           col     = Thing( len(i.cols) , cell)    
           i.cols += [col]
@@ -259,11 +260,12 @@ class Table:
           #---------------------------------------
           for col,_ in i.objs  : i.dep   += [col]
           for col   in i.klass : i.dep   += [col]
-       
-              
-  def distance(i,r1,r2,f=2):
+          if cell[-1] == Table.SYM:
+            col.details = Sym()              
+  def distance(i,r1,r2,cols=None,f=2):
+    cols = cols or i.decs
     inc,n = 0, 10**-32
-    for col in i.decs:
+    for col in cols:
       n    += 1
       x, y  = r1[col.pos], r2[col.pos]
       inc  += col.details.dist(x,y)**f
@@ -359,4 +361,4 @@ def f1():
 def f2():
   assert False
 
-ok()
+oks()
