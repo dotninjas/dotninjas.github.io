@@ -24,6 +24,9 @@ sys.dont_write_bytecode=True
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ###############################################################################
 
+### GLOBALS ###################################################################
+PASS=FAIL=0
+
 help = lambda : [
 """
 (C) 2016, tim@menzies.us MIT, v2
@@ -75,7 +78,6 @@ def options(before, after, *lst):
 THE = options(*help())
 
 ### LIB ########################################################################
-PASS=FAIL=0
 
 def same(x)  : return x
 def less(x,y): return x < y
@@ -136,6 +138,7 @@ def timeit(f,repeats=1):
 class Magic(object):
   def __repr__(i):
     return i.__class__.__name__ + kv(i.__dict__)
+
 
 ### Columns  ###################################################################
 class Sample(Magic):
@@ -228,6 +231,7 @@ class Sym(Summary):
         tmp -= p*math.log(p,2)
     return tmp
 
+
 ### Rows  ######################################################################
 class Row(Magic):
   rid = 0
@@ -258,6 +262,7 @@ class Model(Row):
     "Rewritten by subclass"
     return i
       
+
 ### Tables #####################################################################      
 class Table(Magic):
   KIND  = {'Row':Row, 'Model':Model }[THE.kind]
@@ -271,10 +276,8 @@ class Table(Magic):
     i.cost = 0
     i.cols,  i.objs, i.decs = [], [], []
     i.klass, i.gets, i.dep  = [], [], []
-  def cloned(i):
-    yield [col.txt for cols in i.cols]
-    for row in i._rows:
-      yield row.contents
+  def row0(i):
+    return [col.txt for cols in i.cols]
   def __call__(i,row):
     if i.cols:
       row     = [i.cols[put].add(row[get])
@@ -306,7 +309,9 @@ class Table(Magic):
   def label1(data,row):
     return row # usually rewritten by subclass
 
-def file2table(file, some=1):
+
+### Table filters #################################################################     
+def csv2table(file, some=1):
   tbl= Table()
   with open(file) as fs:
     for line in fs:
@@ -457,7 +462,7 @@ def _col():
 
 @ok
 def _table(file= "data/weather.csv",show=True): 
-  tbl= file2table(file)
+  tbl= csv2table(file)
   for col in tbl.cols:
     print(col.pos,col)
   print("===")

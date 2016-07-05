@@ -79,4 +79,3 @@ class Abcd:
         '{10:3d} {11:3d} {12:3d} {13:10s}').format(
           s.db, s.rx,  s.yes, s.a, s.b, s.c, s.d, 
           s.acc, s.pd, s.pf, s.prec, s.f, s.g, x))
-      
