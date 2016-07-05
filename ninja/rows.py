@@ -371,6 +371,7 @@ class Rows:
     delta,out = init, None
     rows = rows if rows else i._all
     for r2 in rows or i._all:
+      
       if r1.rid != r2.rid:
         tmp = i.distance(r1,r2,xy)
         if better(tmp, delta):

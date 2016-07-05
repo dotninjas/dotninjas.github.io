@@ -3,7 +3,7 @@
 
 """
 from __future__ import division,print_function
-import sys,re,traceback
+import sys,re,traceback,unittests,traceback
 sys.dont_write_bytecode=True # don't write irritating .pyc files
 from contextlib import contextmanager
 

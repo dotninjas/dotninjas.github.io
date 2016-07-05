@@ -18,20 +18,14 @@ def knn(train,tests, k=1):
   for test in  Arff(tests).read1():
     abcd(actual  = test.y[0],
          predict = train.knn(test, k=k))
+  print("")
   return abcd.report()
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(
-    description="kNearest neighbor")
-  p=parser.add_argument
-  p("-k",   type=int,
-    default=1, metavar='k',
-    help="use k nearest neighbors")
-  p("-t",type=str, metavar="File",
-    default='train.arff',
-    help="training set (arff file)")
-  p("-T",type=str, metavar="File",
-    default='test.arff',
-    help="test set (arff file)")
-  args = parser.parse_args()
-  knn(args.t, args.T, args.k)
+  x = args(
+    "kNearest neighbor",
+    #arg   #type #default       #meta  #help
+    ("-k", int,  1,            'k',    "use k nearest neighbors"),
+    ("-t", str,  'train.arff', "File", "training set (arff file)"),
+    ("-T", str, 'test.arff',   "File", "test set (arff file)"))
+  knn(x.t, x.T, x.k)

@@ -100,3 +100,29 @@ def cached(x,y,cache,f):
   else:
     new = cache[key] = f(x,y)
     return new
+
+"""__________________________________________________
+
+### Command line tricks
+
+"""
+
+def args(*lst):
+  import argparse
+  parser = argparse.ArgumentParser(
+    description=lst[0])
+  p  = parser.add_argument
+  for arg,types,default,meta,help in lst[1:]:
+    parser.add_argument(arg,
+                        type=types,
+                        default=default,
+                        metavar=meta,
+                        help=help)
+  return parser.parse_args()
+
+def twiddle():
+  chars = '|/-\\'
+  for c in chars + chars + chars:
+    sys.stdout.write(c)
+    sys.stdout.write('\b')
+    sys.stdout.flush()

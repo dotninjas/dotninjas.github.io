@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import division,print_function
-import sys,re,random,argparse
+import sys,re,random,argparse,traceback,time
 sys.dont_write_bytecode=True
 
 ###############################################################################
@@ -47,6 +47,8 @@ that are orders of magnitude different.
   elp("-X", "run unit tests",                          tests     = False),
   elp("-c", "continous domination bigger",             cdomBigger= 0.01),
   elp("-n", "keep at most, say, 256 samples",          samples   = [256,128,512,1024]),
+  elp("-r", "in pretty print, round numbers",          round     = 3),
+  elp("-R", "probability of reading a row",            some      = 1.00),
   elp("-s", "random number seed",                      seed      = 61409389),
   elp("-t", "training data (arff format",              train     = "train.csv"),
   elp("-T", "testing data (csv format). If null, do xval on train data.",
@@ -71,10 +73,20 @@ def options(before, after, *lst):
   return parser.parse_args()
 
 THE = options(*help())
-print(THE.normalize, THE.seed)
 
 ### LIB ########################################################################
 PASS=FAIL=0
+
+def same(x)  : return x
+def less(x,y): return x < y
+def more(x,y): return x > y
+def max(x,y) : return x if x>y else y
+def min(x,y) :  return x if x<y else y
+def any(lst) :  return random.choose(list)
+def rseed(s) :  random.seed(s or THE.seed)
+def r():  return random.random()
+def isa(x,y): return isinstance(x,y)
+
 def oks():
   global PASS, FAIL
   if THE.tests:
@@ -87,80 +99,96 @@ def ok(f):
     try:
       print("\n-----| %s |-----------------------" % f.__name__)
       if f.__doc__:
-        print("# "+ re.sub(r'\n[ \t]*',"\n# " + f.__doc__)+"\n")
+        print("# "+ re.sub(r'\n[ \t]*',"\n# ",f.__doc__))
       f()
+      print("# pass")
       PASS += 1
-    except Exception,_:
+    except Exception,e:
       FAIL += 1
-      print("# XXXXXX Fail",f.__name__)
+      print(traceback.format_exc()) 
+  return f
 
-def same(x)  :
-  return x
-def less(x,y):
-  return x < y
-def more(x,y):
-  return x > y
-def max(x,y) :
-  return x if x>y else y
-def min(x,y) :
-  return x if x<y else y
-def any(lst) :
-  return random.choose(list)
-def rseed(s) :
-  random.seed(s or THE.seed)
 
 def atom(x)  :
   try: return float(x),Num
   except ValueError: return x,Sym
-      
 
-### Rows  ######################################################################
-class Row(object):
-  rid = 0
-  def __init__(i,lst):
-    i.contents=lst
-    i.rid = Row.rid = Row.rid+1
-  def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
-  def __getitem__(i,k)  : return i.contents[k]
-  def __setitem__(i,k,v): i.contents[k] = v
 
-class Model(Row):
-  def __init__(i,lst):
-    super(Model, i).__init__(lst)
-    i.labelled=False
-  def label(i,tbl,cost=1):
-    """Row labels are cached back into the row. So labelling
-        N times only incur a single labelling cost."""
-    if not i.labelled:
-      i.label1()
-      tbl.cost += cost
-      for col in tbl.dep:
-        col.add( i[col.pos] ) # and remember the new values
-      i.labelled = True
-    return i
-  def label1(i):
-    "Rewritten by subclass"
-    return i
-  
+def kv(d, private="_"):
+  "Print dicts, keys sorted (ignoring 'private' keys)"
+  def _private(key):
+    return key[0] == private
+  def pretty(x):
+    return round(x,THE.round) if isa(x,float) else x
+  return '('+', '.join(['%s: %s' % (k,pretty(d[k]))
+          for k in sorted(d.keys())
+          if not _private(k)]) + ')'
+
+
+def timeit(f,repeats=1):
+  start = time.time()
+  for _ in xrange(repeats):
+    f()
+  stop = time.time()
+  return (stop - start)/repeats
+
+
+class Magic(object):
+  def __repr__(i):
+    return i.__class__.__name__ + kv(i.__dict__)
 
 ### Columns  ###################################################################
-class Summary: pass
+class Sample(Magic):
+  def __init__(i, init=[],max=None):
+    i.n, i._some  = 0, []
+    i.max = max or THE.samples 
+    map(i.add,init)
+  def add(i,x):
+    i.n += 1
+    now  = len(i._some)
+    if now < i.max:
+      i._some += [x]
+    elif r() <= now/i.n:
+      i._some[ int(r() * now) ]= x
+
+class Summary(Magic):
+  def __init__(i,init=[]):
+    i.reset()
+    map(i.add,init)
+
+class Thing(Summary):
+  "some thing that can handle  Nums or Syms"
+  UNKNOWN = "?"
+  def __init__(i,pos,txt):
+    i.txt, i.pos, i.details, i.samples = txt, pos, None, Sample()
+  def add(i,x):
+    if x != Thing.UNKNOWN:
+      if i.details is None:
+        x,what  = atom(x)
+        i.details = what()
+      x = i.details.add(x)
+      i.samples.add(x)
+    return x
 
 class Num(Summary):
-  def __init__(i):
+  def reset(i):
     i.mu,i.n,i.m2,i.up,i.lo = 0,0,0,-10e32,10e32
   def add(i,x):
+    i.n += 1
     x = float(x)
     if x > i.up: i.up=x
+    if x < i.lo: i.lo=x
     delta = x - i.mu
     i.mu += delta/i.n
     i.m2 += delta*(x - i.mu)
-    return x
+    return x 
   def sub(i,x):
     i.n   = max(0,i.n - 1)
     delta = x - i.mu
     i.mu  = max(0,i.mu - delta/i.n)
     i.m2  = max(0,i.m2 - delta*(x - i.mu))
+  def sd(i):
+    return 0 if i.n <= 2 else (i.m2/(i.n - 1))**0.5
   def norm(i,x):
     if THE.normalize:
       tmp= (x - i.lo) / (i.hi - i.lo + 10**-32)
@@ -172,7 +200,7 @@ class Num(Summary):
     return i.up if x <(i.up-i.lo)/2 else i.lo
 
 class Sym(Summary):
-  def __init__(i) :
+  def reset(i):
      i.counts, i.most, i.mode, i.n = {},0,None,0
   def add(i,x):
     i.n += 1
@@ -200,60 +228,63 @@ class Sym(Summary):
         tmp -= p*math.log(p,2)
     return tmp
 
-class Thing(Summary):
-  "some thing that can handle  Nums or Syms"
-  UNKNOWN = "?"
-  def __init__(i, pos, txt):
-    i.txt, i.pos, i.details, i.samples = txt, pos, None, Sample()
-  def add(i,x):
-    if x != Thing.UNKNOWN:
-      if i.details is None:
-        x,what  = atom(x)
-        i.details = what()
-      x = i.details.add(x)
-      i.samples.add(x)
-    return x
+### Rows  ######################################################################
+class Row(Magic):
+  rid = 0
+  def __init__(i,lst):
+    i.contents=lst
+    i.rid = Row.rid = Row.rid+1
+  def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
+  def __getitem__(i,k)  : return i.contents[k]
+  def __setitem__(i,k,v): i.contents[k] = v
 
-
-class Sample:
-  def __init__(i, init=[]):
-    i.n, i.some, i.ordered = 0, [], False
-    map(i.add,init)
-  def add(i,x):
-    i.n += 1
-    now  = len(i.some)
-    if now < THE.samples:
-      i.some += [x]
-    elif r() <= now/i.n:
-      i.some[ int(r() * now) ]= x
+class Model(Row):
+  def __init__(i,lst):
+    super(Model, i).__init__(lst)
+    i.labelled=False
+  def ok(i):
+    return True
+  def label(i,tbl,cost=1):
+    """Row labels are cached back into the row. So labelling
+        N times only incur a single labelling cost."""
+    if not i.labelled:
+      i.label1()
+      tbl.cost += cost
+      for col in tbl.dep:
+        col.add( i[col.pos] ) # and remember the new values
+      i.labelled = True
+    return i
+  def label1(i):
+    "Rewritten by subclass"
+    return i
       
 ### Tables #####################################################################      
-class Table:
+class Table(Magic):
   KIND  = {'Row':Row, 'Model':Model }[THE.kind]
   MORE  = ">"
   LESS  = "<"
   KLASS = "="
-  SYM   = "!"
+  SYM   = "!" 
   SKIP  = "-"
   def __init__(i):
-    i.rows = []
+    i._rows = []
     i.cost = 0
     i.cols,  i.objs, i.decs = [], [], []
     i.klass, i.gets, i.dep  = [], [], []
   def cloned(i):
     yield [col.txt for cols in i.cols]
-    for row in i.rows:
+    for row in i._rows:
       yield row.contents
   def __call__(i,row):
     if i.cols:
       row     = [i.cols[put].add(row[get])
                  for put,get in enumerate(i.gets)]
-      i.rows += [ Table.KIND(row) ]
+      i._rows += [ Table.KIND(row) ]
     else:
       for get,cell in enumerate(row):
         if cell[-1] != Table.SKIP:
           i.gets += [get]
-          col     = Thing( len(i.cols) , cell)    
+          col     = Thing(len(i.cols) , cell)
           i.cols += [col]
           if   cell[0] == Table.MORE  : i.objs  += [(col,more)]
           elif cell[0] == Table.LESS  : i.objs  += [(col,less)]
@@ -275,17 +306,50 @@ class Table:
   def label1(data,row):
     return row # usually rewritten by subclass
 
-
-def file2table(file):
+def file2table(file, some=1):
   tbl= Table()
-  src = open(file) if file else  sys.stdin
-  for line in src:
-    row = map(lambda z:z.strip(),
-              line.split(","))
-    if len(row)> 1:
-      tbl(row)
+  with open(file) as fs:
+    for line in fs:
+      if r() <= THE.some:
+        line = re.sub(r'([\n\r]|#.*)', "", line)
+        row = map(lambda z:z.strip(), line.split(","))
+        if len(row)> 1:
+          tbl(row)
   return tbl
-  
+
+def arff2table(file): 
+  tbl   = Table()
+  seen  = lambda x,y: re.match('^[ \t]*'+x,y,re.IGNORECASE)
+  data,div  = False," "
+  words = []
+  with open(file) as fs:
+    for line in fs:
+      line = re.sub(r'([\n\r]|#.*)', "", line)
+      row  = map(lambda z:z.strip(), line.split(div))
+      if row != []:
+        if   seen("@relation", row[0]) : tbl.relation = row[1]
+        if   seen("@attribute", row[0]): words += [row[1]]
+        elif data and len(row) > 1     : tbl(row)
+        elif seen("@data", row[0])     :
+          data,div=True,","
+          words[-1] = "=" + words[-1]
+          tbl(words)
+  return tbl
+
+def table2arff(tbl):
+  rel = tbl.relation if "relation" in tbl.__dict__ else "data"
+  print("@relation", rel, "\n")
+  for col in tbl.cols:
+    vals="real"
+    if isa(col.details,Sym):
+      vals = set([row[col.pos] for row in tbl._rows
+                if row[col.pos] != Thing.UNKNOWN])
+      vals = '{' + ', '.join(vals) + '}'
+    print("@attribute",col.txt,vals)
+  print("\n@data")
+  for row in tbl._rows:
+    print(', '.join(map(str,row)))
+      
 
 ### Optimizers #################################################################        
 def bdom(x, y, tbl):
@@ -336,19 +400,19 @@ def sway( population, tbl, better= bdom) :
     c      = tbl.distance(west, east)
     cBigger= c*(1 + THE.swayBigger)
     xs     = {}
-    for item in items:
+    for n,item in enumerate(items):
        a = tbl.distance(item, west)
        b = tbl.distance(item, east)
        x = xs[ item.rid ] = cosine(a,b,c) # cosine rule
        if a > cBigger:
-         redo += 1
+         redo += n
          return split(items, mid, item, east)
        if b > cBigger:
-         redo += 1
+         redo += n
          return split(items, mid, west, item)   
     redo  = 0
     items = sorted(items, key= lambda item: xs[ item.rid ]) # sorted by 'x'
-    return west, east, items[:mid], items[mid:]
+    return west, east, items[:mid], items[mid:] 
   # --------
   return cluster(population, []),redo
 
@@ -356,11 +420,71 @@ def sway( population, tbl, better= bdom) :
 ### Tests #################################################################        
 
 @ok
-def f1():
-  assert False
+def _ok1():
+  "Can at least one test fail?"
+  assert 1==2, "equality failure"
 
 @ok
-def f2():
-  assert False
+def _ok2():
+  "Can at least one test pass?"
+  assert 1==1, "equality failure"
+
+@ok
+def _atom():
+  x,t=atom('23.1')
+  assert isinstance(x,float), "coercion failure1"
+  x,t= atom('tim menzies')
+  assert isinstance(x,str), "coercion failure2"
+
+@ok
+def _sample():
+  rseed(1)
+  s = Sample(list('i have gone to seek a great perhaps'),max=8)
+  print(s)
+  assert s._some == [' ', ' ', 'n', 'p', 'v', 'e', 'r', 'p']
+
+@ok
+def _sym():
+ assert Sym(list('i have gone to seek a great perhaps')).counts['a'] == 4
+
+@ok
+def _col():
+  rseed(1)
+  n= Num( [ 600 , 470 , 170 , 430 , 300])
+  assert 164.711 <= n.sd() <= 164.712
+  assert n.lo == 170
+  assert n.up == 600
+
+@ok
+def _table(file= "data/weather.csv",show=True): 
+  tbl= file2table(file)
+  for col in tbl.cols:
+    print(col.pos,col)
+  print("===")
+  for col,what in tbl.objs:
+    print(col.txt,what.__name__)
+  if show:
+    table2arff(tbl)
+
+@ok
+def _arff(file= "data/weather.arff",show=True):
+  tbl= arff2table(file)
+  for col in tbl.cols:
+    print(col.pos,col)
+  print("===")
+  for col in tbl.klass:
+    print(col)
+  if show:
+    table2arff(tbl)
+          
+@ok
+def _table1():
+  _table("data/diabetes.csv",show=False)
+
+@ok
+def _table2():
+  print("Loading 100,000 records takes",
+        timeit(lambda:
+               _table("data/diabetes100000.csv",False)),"seconds.")
 
 oks()
