@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import division,print_function
-import sys,re,random,argparse,traceback,time,math
+import sys,re,random,argparse,traceback,time,math,copy
 sys.dont_write_bytecode=True
 
 ###############################################################################
@@ -43,8 +43,15 @@ all goals are to be minimized; (b) the eval function does not deliver numbers
 that are orders of magnitude different.
 """,
   elp("SWAY's target population = pop^swayCull", swayCull  = 0.5),
-  elp("SWAY's smallest size, leaf clusters",     swayStop  = 20),
-  elp("SWAY projections bigger",                 swayBigger= 0.075),
+  elp("SWAY's smallest size, leaf clusters",     swayStop  = 2),
+  elp("SWAY projections bigger",                 swayBigger= 0.2),
+  elp("verbose mode for DIV",                    divVerbose= False),
+  elp("DIV's cohen measure",                     divCohen  = 0.2),
+  elp("DIV's trivally small delta",              divTrivial= 1.05),
+  elp("""DIV's enough items in a cluster (if 0,
+         computed from pop size)""",             divEnough = 0),
+  elp("""when DIV's are tiny (if 0,
+         computed using divCohen)""",            divTiny   = 0),
   elp("power constant for distance",             edist     = 2.0),
   elp("what to use to compute distance",         dist      = ["decs", "objs"]),
   elp("kind of model class",                     kind      = ["Row", "Model"]),
@@ -61,9 +68,12 @@ that are orders of magnitude different.
 ]
 def elp(h, **d):
   def elp1():
-    if val is False        : return dict(help=h, action="store_true")
-    if isinstance(val,list): return dict(help=h, choices=val,          default=default, metavar=m ,type=t)
-    else                   : return dict(help=h + ("; e.g. %s" % val), default=default, metavar=m, type=t)
+    if val is False :
+      return dict(help=h, action="store_true")
+    if isinstance(val,list):
+      return dict(help=h, choices=val,default=default, metavar=m ,type=t)
+    else:
+      return dict(help=h + ("; e.g. %s" % val), default=default, metavar=m, type=t)
   key,val = d.items()[0]
   default = val[0] if isinstance(val,list) else val
   m,t = "S",str
@@ -82,17 +92,18 @@ THE = options(*help())
 
 ### LIB ########################################################################
 
-
 def same(x)  : return x
 def less(x,y): return x < y
 def more(x,y): return x > y
 def max(x,y) : return x if x>y else y
-def min(x,y) :  return x if x<y else y
-def isa(x,y) : return isinstance(x,y)
+def min(x,y) : return x if x<y else y
 
-def rseed(s=None)     :  random.seed(s or THE.seed)
-def r()          :  return random.random()
-def any(lst)     :  return random.choice(lst)
+def isa(x,y) : return isinstance(x,y)
+def copied(x): return copy.deepcopy(x)
+
+def rseed(s=None): random.seed(s or THE.seed)
+def r()          : return random.random()
+def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
 
 def dot(x='.'): sys.stdout.write(x); sys.stdout.flush()
@@ -118,11 +129,9 @@ def ok(f):
       print(traceback.format_exc()) 
   return f
 
-
 def atom(x)  :
   try: return float(x),Num
   except ValueError: return x,Sym
-
 
 def kv(d, private="_"):
   "Print dicts, keys sorted (ignoring 'private' keys)"
@@ -311,7 +320,16 @@ class Table(Magic):
           for col,_ in i.objs  : i.dep   += [col]
           for col   in i.klass : i.dep   += [col]
           if cell[-1] == Table.SYM:
-            col.details = Sym()              
+            col.details = Sym()
+  def furthest(i,r1,cols=None,f=None):
+    out,d = r1,-1
+    print("")
+    for r2 in i._rows:
+      if r1.rid != r2.rid:
+        tmp = i.distance(r1,r2,cols,f)
+        if tmp > d:
+          out,d = r2,tmp
+    return r2
   def distance(i,r1,r2,cols=None,f=None):
     cols = cols or Table.DIST(i)
     f    = f    or THE.edist
@@ -325,7 +343,7 @@ class Table(Magic):
       n    += 1
       inc   = col.details.dist(x,y)**f
       d    += inc
-    return d**f/n**f
+    return d**(1/f)/n**(1/f)
   def distances(i,r1,cols=None,f=None):
     return sorted([(i.distance(r1,r2,cols,f),r2)
                    for r2 in i._rows
@@ -381,6 +399,89 @@ def table2arff(tbl):
     print(', '.join(map(str,row)))
       
 
+### Discretize ####################################################################
+class Range(Magic):
+  def __init__(i, label=None, n=None,  lo=None,  report=None,
+                  id=None,   up=None, has=None, score=None):
+    i.label, i.lo, i.up, i._has = label, lo, up, has
+    i.score, i.n, i.id         = score, n, id
+    i.report=report
+  def pretty(i)  :
+    if i.lo == i.up:
+      return str(i.lo)
+    else:
+      return '[%s..%s]' % (i.lo,i.up)
+
+def relevant(tbl, goal):
+  "Only returns a range if it contains the goal."
+  for pos,ranges in sharp(tbl):
+    for range in ranges:
+      if range.report.mode == goal:
+        yield pos,range
+
+def sharp(tbl):
+  "Only returns something is discretization can split the column."
+  for col in tbl.cols:
+    if isa(col.details,Num):
+      ranges = div(div, label=col.txt,
+                   x= lambda z: z[col.pos],
+                   y= lambda z: z[tbl.klass[0].pos])
+      if len(ranges) > 1:
+        yield col.pos, ranges
+        
+def div(lst,label=0, x= same, y= same, yKlass= Num):
+  def divide(lst, out=[], lvl=0, cut=None):  
+    xlhs, xrhs   = Num() , Num(map(x,lst))
+    ylhs, yrhs   = yKlass(), yKlass(map(y,lst))
+    score,score1 = value(yrhs),None
+    n            = len(lst)
+    report       = copied(yrhs)
+    for i,new in enumerate(lst):
+      x1= x(new)
+      y1= y(new)
+      if not x1 == Thing.UNKNOWN:
+        xlhs.add(x1); xrhs.sub(x1)
+        ylhs.add(y1); yrhs.sub(y1)
+        if xrhs.n < enough:
+          break
+        else:
+          if xlhs.n >= enough:
+            start, here, stop = x(lst[0]), x1, x(lst[-1])
+            if here - start > tiny:
+              if stop - here > tiny:
+                score1 = ylhs.n/n*value(ylhs) + yrhs.n/n*value(yrhs)
+                if score1*THE.divTrivial < score:
+                  if yKlass == Num:
+                    cut,score= i,score1
+                  else:       
+                    k0,e0,ke0 = report.k(), report.ent(), ke(report)
+                    gain   = k0 - score1
+                    delta  = math.log(3**k0-2,2)-(ke0- ke(yrhs)-ke(ylhs))
+                    border = (math.log(n-1,2) + delta)/n
+                    if gain >= border:
+                      cut,score = i,score1
+    if THE.divVerbose:
+      print('.. '*lvl,len(lst),score1 or '.')
+    if cut:
+      divide(lst[:cut], out= out, lvl= lvl+1)
+      divide(lst[cut:], out= out, lvl= lvl+1)
+    else:
+      out.append(Range(label=label, score=score, report=report,
+                       n=len(lst), id=len(out),
+                       lo=x(lst[0]), up=x(lst[-1]),
+                       has=lst))
+    return out
+    # --- end function divide -----------------------------
+  if not lst: return []
+  ke     = lambda z: z.k()*z.ent()
+  ent    = lambda z: z.ent()
+  sd     = lambda z: z.sd()
+  value  = sd if yKlass==Num else ent
+  tiny   = THE.divTiny  or Num(map(x,lst)).sd() * THE.divCohen
+  enough = THE.divEnough or len(lst)**0.5
+  return divide( sorted(lst[:], key=x), out=[] ,lvl=0) # copied, sorted
+
+
 ### Optimizers #################################################################
 def above(x,y,tbl,better=more):
   "single objective"
@@ -435,28 +536,24 @@ def sway( population, tbl, better= bdom) :
   def split(items, mid,west=None, east=None,redo=20):
     assert redo>0
     cosine = lambda a,b,c: ( a*a + c*c - b*b )/( 2*c+ 0.0001 )
-    if west is None: west = any(items)
+    if west is None: west = any(items) #tbl.furthest(any(items))
     if east is None: east = any(items)
-    while east.rid  == west.rid:
+    #if west is None: west = tbl.furthest(any(items))
+    #if east is None: east = tbl.furthest(west)
+    while east.rid == west.rid:
       east = any(items)
     c      = tbl.distance(west, east)
-    #print("RID",east.rid,west.rid,c)
     xs     = {}
     for n,item in enumerate(items):
        a = tbl.distance(item, west)
        b = tbl.distance(item, east)
        x = xs[ item.rid ] = cosine(a,b,c) # cosine rule
-       stats.add(abs(a-c))
-       stats.add(abs(b-c))
-       #print("s",a,b,c,"ac",abs(a-c),"bc",abs(b-c))
-       if a > c and abs(a-c) > THE.swayBigger:
+       stats.add(abs(a-c)/(c+000.1))
+       stats.add(abs(b-c)/(c+000.1))
+       if a > c and abs(a-c)  > THE.swayBigger:
          dot(">")
          return split(items, mid, west=item, east=east, redo=redo-1)
        if b > c and abs(b-c) > THE.swayBigger:
-         print("<",b,c,abs(b-c)/c)
-         print("east",east,b)
-         print("west",west,a)
-         print("item",item,c)
          dot("<")
          return split(items, mid, west=west, east=item, redo=redo-1)   
     items = sorted(items, key= lambda item: xs[ item.rid ]) # sorted by 'x'
@@ -466,101 +563,124 @@ def sway( population, tbl, better= bdom) :
   return cluster(population, []),stats
 
 
-### Tests #################################################################        
+### Unittests #################################################################        
 
-@ok
-def _ok1():
-  "Can at least one test fail?"
-  assert 1==2, "equality failure"
+# @ok
+# def _ok1():
+#   "Can at least one test fail?"
+#   assert 1==2, "equality failure"
 
-@ok
-def _ok2():
-  "Can at least one test pass?"
-  assert 1==1, "equality failure"
+# @ok
+# def _ok2():
+#   "Can at least one test pass?"
+#   assert 1==1, "equality failure"
 
-@ok
-def _atom():
-  x,t=atom('23.1')
-  assert isinstance(x,float), "coercion failure1"
-  x,t= atom('tim menzies')
-  assert isinstance(x,str), "coercion failure2"
+# @ok
+# def _atom():
+#   x,t=atom('23.1')
+#   assert isinstance(x,float), "coercion failure1"
+#   x,t= atom('tim menzies')
+#   assert isinstance(x,str), "coercion failure2"
 
-@ok
-def _sample():
-  rseed(1)
-  s = Sample(list('i have gone to seek a great perhaps'),max=8)
-  print(s)
-  assert s._some == [' ', ' ', 'n', 'p', 'v', 'e', 'r', 'p']
+# @ok
+# def _sample():
+#   rseed(1)
+#   s = Sample(list('i have gone to seek a great perhaps'),max=8)
+#   print(s)
+#   assert s._some == [' ', ' ', 'n', 'p', 'v', 'e', 'r', 'p']
 
-@ok
-def _sym():
- assert Sym(list('i have gone to seek a great perhaps')).counts['a'] == 4
+# @ok
+# def _sym():
+#  assert Sym(list('i have gone to seek a great perhaps')).counts['a'] == 4
 
-@ok
-def _col():
-  rseed(1)
-  n= Num( [ 600 , 470 , 170 , 430 , 300])
-  assert 164.711 <= n.sd() <= 164.712
-  assert n.lo == 170
-  assert n.up == 600
+# @ok
+# def _col():
+#   rseed(1)
+#   n= Num( [ 600 , 470 , 170 , 430 , 300])
+#   assert 164.711 <= n.sd() <= 164.712
+#   assert n.lo == 170
+#   assert n.up == 600
 
-@ok
-def _table(file= "data/weather.csv",show=True): 
-  tbl= csv2table(file)
-  for col in tbl.cols:
-    print(col.pos,col)
-  print("===")
-  for col,what in tbl.objs:
-    print(col.txt,what.__name__)
-  if show:
-    table2arff(tbl)
+# @ok
+# def _table(file= "data/weather.csv",show=True): 
+#   tbl= csv2table(file)
+#   for col in tbl.cols:
+#     print(col.pos,col)
+#   print("===")
+#   for col,what in tbl.objs:
+#     print(col.txt,what.__name__)
+#   if show:
+#     table2arff(tbl)
 
-@ok
-def _arff(file= "data/weather.arff",show=True):
-  tbl= arff2table(file)
-  for col in tbl.cols:
-    print(col.pos,col)
-  print("===")
-  for col in tbl.klass:
-    print(col)
-  if show:
-    table2arff(tbl)
+# @ok
+# def _arff(file= "data/weather.arff",show=True):
+#   tbl= arff2table(file)
+#   for col in tbl.cols:
+#     print(col.pos,col)
+#   print("===")
+#   for col in tbl.klass:
+#     print(col)
+#   if show:
+#     table2arff(tbl)
           
-@ok
-def _table1():
-  _table("data/diabetes.csv",show=False)
+# @ok
+# def _table1():
+#   _table("data/diabetes.csv",show=False)
+
+# #@ok
+# def _table2():
+#   print("Loading 100,000 records takes",
+#         timeit(lambda:
+#                _table("data/diabetes100000.csv",False)),"seconds.")
+
+# @ok
+# def _distances(file= "data/weather2.csv"):
+#   rseed()
+#   tbl= csv2table(file)
+#   for r1 in shuffle(tbl._rows)[:4]:
+#     tmp=tbl.distances(r1)
+#     print("")
+#     print(r1)
+#     print(tmp[0][1], tmp[0][0])
+#     print(tmp[-1][1], tmp[-1][0])
 
 #@ok
-def _table2():
-  print("Loading 100,000 records takes",
-        timeit(lambda:
-               _table("data/diabetes100000.csv",False)),"seconds.")
-
-@ok
-def _distances(file= "data/weather2.csv"):
-  rseed()
-  tbl= csv2table(file)
-  for r1 in shuffle(tbl._rows)[:4]:
-    tmp=tbl.distances(r1)
-    print("")
-    print(r1)
-    print(tmp[0][1], tmp[0][0])
-    print(tmp[-1][1], tmp[-1][0])
-
-@ok
 def _sway(file="data/diabetes.csv"):
   rseed()
   tbl0 = csv2table(file)
   print(0,tbl0.klass[0].details.counts,
         tbl0.klass[0].details.ent())
-  leafs,r = sway(tbl0._rows,tbl0,below)
+  leafs,r = sway(tbl0._rows,tbl0,above)
   n=0
   for c,tbl in enumerate(leafs):
-    print("")
     n += len(tbl._rows)
     print(c,tbl.klass[0].details.counts,
           tbl.klass[0].details.ent())
   print(n)
-  print(r,r.sd())
-  
+  print(r,r.n,r.sd())
+
+@ok
+def _sdiv():
+  rseed()
+  n   = 3000
+  lst = [r()**2 for x in xrange(n)]
+  lst = lst + [r()**0.5 for x in xrange(n)]
+  for range in  div([(i,n) for i,n in enumerate(lst)],
+                    x=lambda z:z[0],
+                    y=lambda z:z[1]):
+    print(range)
+
+@ok
+def _ediv():
+  rseed()
+  lst0=list('abcd')
+  lst = []
+  for _ in xrange(1000):
+    for i,x in enumerate(lst0):
+      lst += [[i+0.5*r(), x]] # 'a' is around 0.5, 'd' is around 3.5
+  for y in div( lst,yKlass=Sym,
+                x=lambda z: z[0],
+                y=lambda z: z[1]):
+    print(y)
+    
 oks()
