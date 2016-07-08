@@ -393,7 +393,7 @@ eg1() {
     j48 data/weather.arff data/weather.arff
 }
 #<
-# Output:
+# Output:  
 #      === Predictions on test data ===
 #      
 #       inst#     actual  predicted error prediction
@@ -466,6 +466,7 @@ eg4() {
 #<
 #
 # This produces
+#
 #      j48 1
 #      # db                   rx            n    a    b   c   d    acc pd  pf  prec f  g  class
 #      ----------------------------------------------------------------------------------------------------
