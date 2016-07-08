@@ -28,6 +28,8 @@ sys.dont_write_bytecode=True
 ### GLOBALS ###################################################################
 PASS=FAIL=0
 
+#TODO: normalize back in cdom
+
 help = lambda : [
 """
 (C) 2016, tim@menzies.us MIT, v2
@@ -43,12 +45,12 @@ functions need to be well-behaved i.e. ideally 0..1 or, more realistically, (a)
 all goals are to be minimized; (b) the eval function does not deliver numbers
 that are orders of magnitude different.
 """,
+  # sway
   elp("SWAY's target population = pop^swayCull", swayCull  = 0.5),
   elp("SWAY's smallest size, leaf clusters",     swayStop  = 2),
   elp("SWAY projections bigger",                 swayBigger= 0.2),
-  elp("verbose mode for DIV",                    divVerbose= False),
-  elp("NaiveBayes m",                            nbm       = 2),
-  elp("NaiveBayes k",                            nbk       = 1),
+  # -----------------------------------------------------------------
+  # div
   elp("verbose mode for DIV",                    divVerbose= False),
   elp("DIV's cohen measure",                     divCohen  = 0.2),
   elp("DIV's trivally small delta",              divTrivial= 1.05),
@@ -56,6 +58,10 @@ that are orders of magnitude different.
          computed from pop size)""",             divEnough = 0),
   elp("""when DIV's are tiny (if 0,
          computed using divCohen)""",            divTiny   = 0),
+  # -----------------------------------------------------------------
+  # naive Bayes
+  elp("NaiveBayes m",                            nbm       = 2),
+  elp("NaiveBayes k",                            nbk       = 1),
   elp("power constant for distance",             edist     = 2.0),
   elp("what to use to compute distance",         dist      = ["decs", "objs"]),
   elp("kind of model class",                     kind      = ["Row", "Model"]),
@@ -66,11 +72,13 @@ that are orders of magnitude different.
   elp("continuous domination bigger",            cdomBigger= 0.01),
   elp("keep at most, say, 256 samples",          samples   = [256,128,512,1024]),
   elp("in pretty print, round numbers",          round     = 3),
+  elp("use quintiles if this==5 else quartiles", ntiles    = [5,4]),
   elp("probability of reading a row",            some      = 1.00),
   elp("random number seed",                      seed      = 61409389),
   elp("training data (arff format",              train     = "train.csv"),
   elp("""testing data (csv format). 
-       If null, do xval on train data.""",       test      = "test.csv")
+       If null, do xval on train data.""",       test      = "test.csv"),
+  elp("Run some test function, then quit",       run       = "")
 ]
 def elp(h, **d):
   def elp1():
@@ -105,6 +113,9 @@ def max(x,y) : return x if x>y else y
 def min(x,y) : return x if x<y else y
 def ro(x)    : return round(x,THE.round)
 def ros(lst) : return map(ro,lst)
+def zos(lst) : return ', '.join(map(unZero,map(ro,lst)))
+def unZero(f):
+  return ('%.15f' % f).rstrip('0').rstrip('.')
 
 def isa(x,y) : return isinstance(x,y)
 def copied(x): return copy.deepcopy(x)
@@ -150,18 +161,36 @@ def kv(d, private="_"):
           for k in sorted(d.keys())
           if not _private(k)]) + ')'
 
-def quintile(lst, lo=None, hi=None):
+def xtiles(lsts):
+  lsts = map(sorted,lsts)
+  lo   = sorted(map(lambda z:z[0], lsts))[0]
+  up   = sorted(map(lambda z:z[-1], lsts))[-1]
+  mid  = 2 if  THE.ntiles==5 else 1
+  return sorted([xtile(lst,lo=lo,up=up) for lst in lsts],
+                key = lambda z:z[1][mid])
+  
+  
+def xtile(lst,lo=None, up=None):
   lo   = lo or lst[0]
-  hi   = hi or lst[-1]
-  r    = lambda n: int(round(n))         # round
-  x    = lambda y: lst[ r(len(lst)*y) ]  # xth percentile item
-  pos  = lambda y: r((x(y) - lo) / (hi - lo + 0.00001) * THE.tiles) # xth place   
+  up   = up or lst[-1]
+  r    = lambda n: int(n)         # round
+  ok   = lambda z: max(0, min(len(lst) - 1, z))
+  yth  = lambda y: lst[ ok(r(len(lst)*y)) ]  # yth percentile item
+  pos  = lambda y: r((yth(y) - lo) / (up - lo + 0.00001) * THE.tiles) # xth place   
   tiles= [" "] * THE.tiles
+  seen = []
+  if THE.ntiles==5:
+    for z in xrange(pos(0.1), pos(0.3)): tiles[z] = "-"
+    for z in xrange(pos(0.7), pos(0.9)): tiles[z] = "-"
+    seen = [yth(z) for z in [0.1,0.3,0.5,0.7,0.9]]
+  else:
+    for z in xrange(pos(0.25), pos(0.75)): tiles[z] = "-"
+    seen = [pos(z) for z in [0.25,0.5,0.75]]
+  tiles[ pos(0) ] = "|"
+  tiles[ pos(1) ] = "|"
+  
   tiles[ pos(0.5) ] = "*"
-  tiles[ r(THE.tiles * 0.5) ] = "|"
-  for z in xrange(pos(0.1), pos(0.3)): tiles[z] = "-"
-  for z in xrange(pos(0.7), pos(0.9)): tiles[z] = "-"
-  return "|"+''.join(tiles)+"|"
+  return ''.join(tiles), ros(seen)
 
 def timeit(f,repeats=1):
   start = time.time()
@@ -180,27 +209,27 @@ class o(Pretty):
 
 
 ### Sample  ###################################################################
-def _also(f):
+def cache(f):
   @wraps(f)
   def memo(i):
-    if i._also is None:  i._also = f(i)
-    return i._also
+    if i.cache is None:  i.cache = f(i)
+    return i.cache
   return memo
   
 class Sample(Pretty):
   def __init__(i, init=[],max=None):
     i.n, i._some  = 0, []
     i.max = max or THE.samples
-    i._also = None
+    i.cache = None
     map(i.add,init)
   def add(i,x):
     i.n += 1
     now  = len(i._some)
     if now < i.max:
-      i._also = None
+      i.cache = None
       i._some += [x]
     elif r() <= now/i.n:
-      i._also = None
+      i.cache = None
       i._some[ int(r() * now) ]= x
   def __ne__(i, j): # assumes all samples are nums
     "Cliff's delta"
@@ -211,10 +240,11 @@ class Sample(Pretty):
         if x < y: lt += 1
     z = (lt + gt) / (len(i._some) * len(j._some))
     return z >= THE.cliff
-  @_also
+  @cache
   def stats(i): # assumes all samples are nums
     i._some = sorted(i._some)
-    x = lambda y: i._some[int(round(len(i._some)*y))]
+    z= lambda z: int(max(0, min(len(i._some) - 1, z)))
+    x= lambda y: i._some[ok(int(len(i._some)*y))]
     return o(median= x(0.5),
              lo    = i._some[0],
              hi    = i._some[-1],
@@ -233,13 +263,13 @@ class Thing(Summary):
   "some thing that can handle  Nums or Syms"
   UNKNOWN = "?"
   def __init__(i,pos,txt):
-    i.txt, i.pos, i.details, i.samples = txt, pos, None, Sample()
+    i.txt, i.pos, i.my, i.samples = txt, pos, None, Sample()
   def add(i,x):
     if x != Thing.UNKNOWN:
-      if i.details is None:
+      if i.my is None:
         x,what  = atom(x)
-        i.details = what()
-      x = i.details.add(x)
+        i.my = what()
+      x = i.my.add(x)
       i.samples.add(x)
     return x
 
@@ -296,8 +326,8 @@ class Sym(Summary):
   def norm(i,x)   : return x
   def dist(i,x,y) : return 0 if x==y else 1
   def furthest(i,x): return "SoMEcrazyTHing"
-  def like(i,x,m,n,prior):
-    return (i.counts(x) + m*prior)/(n + m)
+  def like(i,x,prior):
+    return (i.counts(x) + THE.nbm*prior)/(i.n + THE.nbm)
   def k(i):
     return len(i.counts.keys())
   def ent(i):
@@ -380,7 +410,7 @@ class Table(Pretty):
           for col,_ in i.objs  : i.dep   += [col]
           for col   in i.klass : i.dep   += [col]
           if cell[-1] == Table.SYM:
-            col.details = Sym()
+            col.my = Sym()
   def furthest(i,r1,cols=None,f=None):
     out,d = r1,-1
     for r2 in i._rows:
@@ -397,10 +427,10 @@ class Table(Pretty):
       x, y  = r1[col.pos], r2[col.pos]
       if x is Thing.UNKNOWN and y is Thing.UNKNOWN:
         continue
-      if x is Thing.UNKNOWN: x=col.details.furthest(y)
-      if y is Thing.UNKNOWN: y=col.details.furthest(x)
+      if x is Thing.UNKNOWN: x=col.my.furthest(y)
+      if y is Thing.UNKNOWN: y=col.my.furthest(x)
       n    += 1
-      inc   = col.details.dist(x,y)**f
+      inc   = col.my.dist(x,y)**f
       d    += inc
     return d**(1/f)/n**(1/f)
   def distances(i,r1,cols=None,f=None):
@@ -448,7 +478,7 @@ def table2arff(tbl):
   print("@relation", rel, "\n")
   for col in tbl.cols:
     vals="real"
-    if isa(col.details,Sym):
+    if isa(col.my,Sym):
       vals = set([row[col.pos] for row in tbl._rows
                 if row[col.pos] != Thing.UNKNOWN])
       vals = '{' + ', '.join(vals) + '}'
@@ -461,18 +491,19 @@ def table2arff(tbl):
 def nbClassify(row,tbl,klasses):
   k = THE.nbk
   m = THE.nbm
-  guess,best,nh = None,-1-**32, len(klasses)
+  guess,best,nh = None, -1-10**32, len(klasses)
   for this,klass in klasses.items():
-    like = prior = (klass.details.n + k) / (len(tbl._rows) + k * nh)
-    n = len(klass._rows)
+    like = prior = (klass.my.n + k) / (len(tbl._rows) + k * nh)
     for col in klass.decs:
       x = row[col.pos]
-      like += col.details.like(x,m,n,prior)
+      like += col.my.like(x,prior)
     if like > best:
       guess,best = this,like
   return guess
   
-    
+### Learners   ####################################################################
+
+
 ### Discretize ####################################################################
 class Range(Pretty):
   def __init__(i, label=None, n=None,  lo=None,  report=None,
@@ -496,7 +527,7 @@ def relevant(tbl, goal):
 def sharp(tbl):
   "Only returns something is discretization can split the column."
   for col in tbl.cols:
-    if isa(col.details,Num):
+    if isa(col.my,Num):
       ranges = div(div, label=col.txt,
                    x= lambda z: z[col.pos],
                    y= lambda z: z[tbl.klass[0].pos])
@@ -554,7 +585,6 @@ def div(lst,label=0, x= same, y= same, yKlass= Num):
   tiny   = THE.divTiny  or Num(map(x,lst)).sd() * THE.divCohen
   enough = THE.divEnough or len(lst)**0.5
   return divide( sorted(lst[:], key=x), out=[] ,lvl=0) # copied, sorted
-
 
 ### Optimizers #################################################################
 def above(x,y,tbl,better=more):
@@ -636,128 +666,130 @@ def sway( population, tbl, better= bdom) :
 
 ### Unittests #################################################################        
 
-# @ok
-# def _ok1():
-#   "Can at least one test fail?"
-#   assert 1==2, "equality failure"
+  
+@ok
+def _ok1():
+  "Can at least one test fail?"
+  assert 1==2, "equality failure"
 
-# @ok
-# def _ok2():
-#   "Can at least one test pass?"
-#   assert 1==1, "equality failure"
+@ok
+def _ok2():
+  "Can at least one test pass?"
+  assert 1==1, "equality failure"
 
-# @ok
-# def _atom():
-#   x,t=atom('23.1')
-#   assert isinstance(x,float), "coercion failure1"
-#   x,t= atom('tim menzies')
-#   assert isinstance(x,str), "coercion failure2"
+@ok
+def _atom():
+  x,t=atom('23.1')
+  assert isinstance(x,float), "coercion failure1"
+  x,t= atom('tim menzies')
+  assert isinstance(x,str), "coercion failure2"
 
-# @ok
-# def _sample():
-#   rseed(1)
-#   s = Sample(list('i have gone to seek a great perhaps'),max=8)
-#   print(s)
-#   assert s._some == [' ', ' ', 'n', 'p', 'v', 'e', 'r', 'p']
+@ok
+def _sample():
+  rseed(1)
+  s = Sample(list('i have gone to seek a great perhaps'),max=8)
+  print(s)
+  assert s._some == [' ', ' ', 'n', 'p', 'v', 'e', 'r', 'p']
 
 @ok
 def _sample1():
   rseed()
-  s = Sample()
-  for _ in xrange(10000): s.add(r()**2)
-  s.stats()
-  print(ros(s.stats().bars))
-  print(quintile(s.stats().some))
+  n = 1000
+  s1,s2,s3,s4 = Sample(), Sample(), Sample(), Sample()
+  for _ in xrange(n): s1.add(r()**4/2)
+  for _ in xrange(n): s2.add(r()**2)
+  for _ in xrange(n): s3.add(r()**0.5* 1.5)
+  for _ in xrange(n): s4.add(3*r()**0.33)
+  lsts = [s.stats().some for s in [s1,s2,s3,s4]]
+  for report in xtiles(lsts):
+    print(report)
 
-# @ok
-# def _sym():
-#  assert Sym(list('i have gone to seek a great perhaps')).counts['a'] == 4
 
-# @ok
-# def _col():
-#   rseed(1)
-#   n= Num( [ 600 , 470 , 170 , 430 , 300])
-#   assert 164.711 <= n.sd() <= 164.712
-#   assert n.lo == 170
-#   assert n.up == 600
+@ok
+def _sym():
+ assert Sym(list('i have gone to seek a great perhaps')).counts['a'] == 4
 
-# @ok
-# def _table(file= "data/weather.csv",show=True): 
-#   tbl= csv2table(file)
-#   for col in tbl.cols:
-#     print(col.pos,col)
-#   print("===")
-#   for col,what in tbl.objs:
-#     print(col.txt,what.__name__)
-#   if show:
-#     table2arff(tbl)
+@ok
+def _col():
+  rseed(1)
+  n= Num( [ 600 , 470 , 170 , 430 , 300])
+  assert 164.711 <= n.sd() <= 164.712
+  assert n.lo == 170
+  assert n.up == 600
 
-# @ok
-# def _arff(file= "data/weather.arff",show=True):
-#   tbl= arff2table(file)
-#   for col in tbl.cols:
-#     print(col.pos,col)
-#   print("===")
-#   for col in tbl.klass:
-#     print(col)
-#   if show:
-#     table2arff(tbl)
+@ok
+def _table(file= "data/weather.csv",show=True): 
+  tbl= csv2table(file)
+  for col in tbl.cols:
+    print(col.pos,col)
+  print("===")
+  for col,what in tbl.objs:
+    print(col.txt,what.__name__)
+  if show:
+    table2arff(tbl)
+
+@ok
+def _arff(file= "data/weather.arff",show=True):
+  tbl= arff2table(file)
+  for col in tbl.cols:
+    print(col.pos,col)
+  print("===")
+  for col in tbl.klass:
+    print(col)
+  if show:
+    table2arff(tbl)
           
-# @ok
-# def _table1():
-#   _table("data/diabetes.csv",show=False)
+@ok
+def _table1():
+  _table("data/diabetes.csv",show=False)
 
-# #@ok
-# def _table2():
-#   print("Loading 100,000 records takes",
-#         timeit(lambda:
-#                _table("data/diabetes100000.csv",False)),"seconds.")
+@ok
+def _table2():
+  print("Loading 100,000 records takes",
+        timeit(lambda:
+               _table("data/diabetes100000.csv",False)),"seconds.")
 
-# @ok
-# def _distances(file= "data/weather2.csv"):
-#   rseed()
-#   tbl= csv2table(file)
-#   for r1 in shuffle(tbl._rows)[:4]:
-#     tmp=tbl.distances(r1)
-#     print("")
-#     print(r1)
-#     print(tmp[0][1], tmp[0][0])
-#     print(tmp[-1][1], tmp[-1][0])
+@ok
+def _distances(file= "data/weather.csv"):
+  rseed()
+  tbl= csv2table(file)
+  for r1 in shuffle(tbl._rows)[:4]:
+    tmp=tbl.distances(r1)
+    print("")
+    print(r1)
+    print(tmp[0][1], tmp[0][0])
+    print(tmp[-1][1], tmp[-1][0])
 
 @ok
 def _sway(file="data/diabetes.csv"):
-<<<<<<< HEAD
   rseed()
   tbl0 = csv2table(file)
-  print(0,tbl0.klass[0].details.counts,
-        tbl0.klass[0].details.ent())
-  leafs,r = sway(tbl0._rows,tbl0,above)
+  print(0,tbl0.klass[0].my.counts,
+        tbl0.klass[0].my.ent())
+  leafs = sway(tbl0._rows,tbl0,above)
   n=0
   for c,tbl in enumerate(leafs):
     n += len(tbl._rows)
-    print(c,tbl.klass[0].details.counts,
-          tbl.klass[0].details.ent())
+    print(c,tbl.klass[0].my.counts,
+          tbl.klass[0].my.ent())
   print(n)
-  print(r,r.n,r.sd())
 
 #@ok
-=======
   def worker():
     rseed()
     tbl0 = csv2table(file)
-    print(0,tbl0.klass[0].details.counts,
-          tbl0.klass[0].details.ent())
+    print(0,tbl0.klass[0].my.counts,
+          tbl0.klass[0].my.ent())
     leafs = sway(tbl0._rows,tbl0,above)
     n=0
     for c,tbl in enumerate(leafs):
       n += len(tbl._rows)
-      print(c,tbl.klass[0].details.counts,
-            tbl.klass[0].details.ent())
+      print(c,tbl.klass[0].my.counts,
+            tbl.klass[0].my.ent())
     print(n)
   print(timeit(worker))
   
 @ok
->>>>>>> f599eb4c375038ccb9b987c5ea9ba370b27086ec
 def _sdiv():
   rseed()
   n   = 10000
@@ -780,5 +812,9 @@ def _ediv():
                 x=lambda z: z[0],
                 y=lambda z: z[1]):
     print(y)
-    
-oks()
+
+if THE.run:
+  f= eval("lambda : %s()" %THE.run)
+  ok(f())
+  sys.exit()
+  
