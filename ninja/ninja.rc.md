@@ -77,7 +77,8 @@ Go to a clean new directory, on a pathname with no spaces,  type...
 3. mv dotninjas.github.io-master/* .
 4. cd ninja
 5. sh ninja
-6. eg2
+6. eg1
+
 
 If that works, you should see (in a few minutes), a report looking like this
 (note, your numbers may differ due to your local random number generator,
