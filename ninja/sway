@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import division,print_function
 import sys,re,random,argparse,traceback,time,math,copy
+from functools import wraps
 sys.dont_write_bytecode=True
 
 ###############################################################################
@@ -46,6 +47,9 @@ that are orders of magnitude different.
   elp("SWAY's smallest size, leaf clusters",     swayStop  = 2),
   elp("SWAY projections bigger",                 swayBigger= 0.2),
   elp("verbose mode for DIV",                    divVerbose= False),
+  elp("NaiveBayes m",                            nbm       = 2),
+  elp("NaiveBayes k",                            nbk       = 1),
+  elp("verbose mode for DIV",                    divVerbose= False),
   elp("DIV's cohen measure",                     divCohen  = 0.2),
   elp("DIV's trivally small delta",              divTrivial= 1.05),
   elp("""DIV's enough items in a cluster (if 0,
@@ -57,6 +61,8 @@ that are orders of magnitude different.
   elp("kind of model class",                     kind      = ["Row", "Model"]),
   elp("Disable distance normalization",          raw       = False),
   elp("run unit tests",                          tests     = False),
+  elp("tiles display width",                     tiles     = 40),
+  elp("small effect size (Cliff's dela)",        cliff     = [0.147, 0.33, 0.474]),
   elp("continuous domination bigger",            cdomBigger= 0.01),
   elp("keep at most, say, 256 samples",          samples   = [256,128,512,1024]),
   elp("in pretty print, round numbers",          round     = 3),
@@ -97,6 +103,8 @@ def less(x,y): return x < y
 def more(x,y): return x > y
 def max(x,y) : return x if x>y else y
 def min(x,y) : return x if x<y else y
+def ro(x)    : return round(x,THE.round)
+def ros(lst) : return map(ro,lst)
 
 def isa(x,y) : return isinstance(x,y)
 def copied(x): return copy.deepcopy(x)
@@ -105,8 +113,7 @@ def rseed(s=None): random.seed(s or THE.seed)
 def r()          : return random.random()
 def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
-
-def dot(x='.'): sys.stdout.write(x); sys.stdout.flush()
+def dot(x='.')   : sys.stdout.write(x); sys.stdout.flush()
   
 def oks():
   global PASS, FAIL
@@ -143,6 +150,18 @@ def kv(d, private="_"):
           for k in sorted(d.keys())
           if not _private(k)]) + ')'
 
+def quintile(lst, lo=None, hi=None):
+  lo   = lo or lst[0]
+  hi   = hi or lst[-1]
+  r    = lambda n: int(round(n))         # round
+  x    = lambda y: lst[ r(len(lst)*y) ]  # xth percentile item
+  pos  = lambda y: r((x(y) - lo) / (hi - lo + 0.00001) * THE.tiles) # xth place   
+  tiles= [" "] * THE.tiles
+  tiles[ pos(0.5) ] = "*"
+  tiles[ r(THE.tiles * 0.5) ] = "|"
+  for z in xrange(pos(0.1), pos(0.3)): tiles[z] = "-"
+  for z in xrange(pos(0.7), pos(0.9)): tiles[z] = "-"
+  return "|"+''.join(tiles)+"|"
 
 def timeit(f,repeats=1):
   start = time.time()
@@ -152,26 +171,60 @@ def timeit(f,repeats=1):
   return (stop - start)/repeats
 
 
-class Magic(object):
+class Pretty(object):
   def __repr__(i):
     return i.__class__.__name__ + kv(i.__dict__)
+    
+class o(Pretty):
+  def __init__(i, **adds): i.__dict__.update(adds)
 
 
-### Columns  ###################################################################
-class Sample(Magic):
+### Sample  ###################################################################
+def _also(f):
+  @wraps(f)
+  def memo(i):
+    if i._also is None:  i._also = f(i)
+    return i._also
+  return memo
+  
+class Sample(Pretty):
   def __init__(i, init=[],max=None):
     i.n, i._some  = 0, []
-    i.max = max or THE.samples 
+    i.max = max or THE.samples
+    i._also = None
     map(i.add,init)
   def add(i,x):
     i.n += 1
     now  = len(i._some)
     if now < i.max:
+      i._also = None
       i._some += [x]
     elif r() <= now/i.n:
+      i._also = None
       i._some[ int(r() * now) ]= x
+  def __ne__(i, j): # assumes all samples are nums
+    "Cliff's delta"
+    lt = gt = 0
+    for x in i._some:
+      for y in j._some:
+        if x > y: gt += 1
+        if x < y: lt += 1
+    z = (lt + gt) / (len(i._some) * len(j._some))
+    return z >= THE.cliff
+  @_also
+  def stats(i): # assumes all samples are nums
+    i._some = sorted(i._some)
+    x = lambda y: i._some[int(round(len(i._some)*y))]
+    return o(median= x(0.5),
+             lo    = i._some[0],
+             hi    = i._some[-1],
+             some  = i._some,
+             iqr   = x(0.75) - x(0.25),
+             bars  = [x(p) for p in [0.1,0.3,0.5,0.7,0.9]])
 
-class Summary(Magic):
+
+### Columns  ###################################################################
+class Summary(Pretty):
   def __init__(i,init=[]):
     i.reset()
     map(i.add,init)
@@ -220,6 +273,11 @@ class Num(Summary):
     return i.norm(x) - i.norm(y)
   def furthest(i,x) :
     return i.up if x <(i.up-i.lo)/2 else i.lo
+  def like(i,x,*_):
+    var   = i.sd()**2
+    denom = (2*math.pi*var)**.5
+    num   = math.exp(-(x-i.mu)**2/(2*var))
+    return num/denom
 
 class Sym(Summary):
   def reset(i):
@@ -238,6 +296,8 @@ class Sym(Summary):
   def norm(i,x)   : return x
   def dist(i,x,y) : return 0 if x==y else 1
   def furthest(i,x): return "SoMEcrazyTHing"
+  def like(i,x,m,n,prior):
+    return (i.counts(x) + m*prior)/(n + m)
   def k(i):
     return len(i.counts.keys())
   def ent(i):
@@ -252,7 +312,7 @@ class Sym(Summary):
 
 
 ### Rows  ######################################################################
-class Row(Magic):
+class Row(Pretty):
   rid = 0
   def __init__(i,lst):
     i.contents=lst
@@ -283,7 +343,7 @@ class Model(Row):
       
 
 ### Tables #####################################################################      
-class Table(Magic):
+class Table(Pretty):
   KIND  = {'Row'  : Row,
            'Model': Model }[THE.kind]
   DIST  = {'decs' : lambda tbl:tbl.decs,
@@ -323,7 +383,6 @@ class Table(Magic):
             col.details = Sym()
   def furthest(i,r1,cols=None,f=None):
     out,d = r1,-1
-    print("")
     for r2 in i._rows:
       if r1.rid != r2.rid:
         tmp = i.distance(r1,r2,cols,f)
@@ -399,8 +458,23 @@ def table2arff(tbl):
     print(', '.join(map(str,row)))
       
 
+def nbClassify(row,tbl,klasses):
+  k = THE.nbk
+  m = THE.nbm
+  guess,best,nh = None,-1-**32, len(klasses)
+  for this,klass in klasses.items():
+    like = prior = (klass.details.n + k) / (len(tbl._rows) + k * nh)
+    n = len(klass._rows)
+    for col in klass.decs:
+      x = row[col.pos]
+      like += col.details.like(x,m,n,prior)
+    if like > best:
+      guess,best = this,like
+  return guess
+  
+    
 ### Discretize ####################################################################
-class Range(Magic):
+class Range(Pretty):
   def __init__(i, label=None, n=None,  lo=None,  report=None,
                   id=None,   up=None, has=None, score=None):
     i.label, i.lo, i.up, i._has = label, lo, up, has
@@ -536,7 +610,7 @@ def sway( population, tbl, better= bdom) :
   def split(items, mid,west=None, east=None,redo=20):
     assert redo>0
     cosine = lambda a,b,c: ( a*a + c*c - b*b )/( 2*c+ 0.0001 )
-    if west is None: west = any(items) #tbl.furthest(any(items))
+    if west is None: west = any(items) 
     if east is None: east = any(items)
     #if west is None: west = tbl.furthest(any(items))
     #if east is None: east = tbl.furthest(west)
@@ -548,19 +622,16 @@ def sway( population, tbl, better= bdom) :
        a = tbl.distance(item, west)
        b = tbl.distance(item, east)
        x = xs[ item.rid ] = cosine(a,b,c) # cosine rule
-       stats.add(abs(a-c)/(c+000.1))
-       stats.add(abs(b-c)/(c+000.1))
        if a > c and abs(a-c)  > THE.swayBigger:
-         dot(">")
-         return split(items, mid, west=item, east=east, redo=redo-1)
+         dot(">%s " % n)
+         return split(items, mid, west=west, east=item, redo=redo-1)
        if b > c and abs(b-c) > THE.swayBigger:
-         dot("<")
-         return split(items, mid, west=west, east=item, redo=redo-1)   
+         dot("<%s" % n)
+         return split(items, mid, west=item, east=east, redo=redo-1)   
     items = sorted(items, key= lambda item: xs[ item.rid ]) # sorted by 'x'
     return west, east, items[:mid], items[mid:] 
   # --------
-  stats=Num()
-  return cluster(population, []),stats
+  return cluster(population, [])
 
 
 ### Unittests #################################################################        
@@ -588,6 +659,15 @@ def sway( population, tbl, better= bdom) :
 #   s = Sample(list('i have gone to seek a great perhaps'),max=8)
 #   print(s)
 #   assert s._some == [' ', ' ', 'n', 'p', 'v', 'e', 'r', 'p']
+
+@ok
+def _sample1():
+  rseed()
+  s = Sample()
+  for _ in xrange(10000): s.add(r()**2)
+  s.stats()
+  print(ros(s.stats().bars))
+  print(quintile(s.stats().some))
 
 # @ok
 # def _sym():
@@ -644,8 +724,9 @@ def sway( population, tbl, better= bdom) :
 #     print(tmp[0][1], tmp[0][0])
 #     print(tmp[-1][1], tmp[-1][0])
 
-#@ok
+@ok
 def _sway(file="data/diabetes.csv"):
+<<<<<<< HEAD
   rseed()
   tbl0 = csv2table(file)
   print(0,tbl0.klass[0].details.counts,
@@ -660,6 +741,23 @@ def _sway(file="data/diabetes.csv"):
   print(r,r.n,r.sd())
 
 #@ok
+=======
+  def worker():
+    rseed()
+    tbl0 = csv2table(file)
+    print(0,tbl0.klass[0].details.counts,
+          tbl0.klass[0].details.ent())
+    leafs = sway(tbl0._rows,tbl0,above)
+    n=0
+    for c,tbl in enumerate(leafs):
+      n += len(tbl._rows)
+      print(c,tbl.klass[0].details.counts,
+            tbl.klass[0].details.ent())
+    print(n)
+  print(timeit(worker))
+  
+@ok
+>>>>>>> f599eb4c375038ccb9b987c5ea9ba370b27086ec
 def _sdiv():
   rseed()
   n   = 10000
