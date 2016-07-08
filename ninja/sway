@@ -47,6 +47,9 @@ that are orders of magnitude different.
   elp("SWAY's smallest size, leaf clusters",     swayStop  = 2),
   elp("SWAY projections bigger",                 swayBigger= 0.2),
   elp("verbose mode for DIV",                    divVerbose= False),
+  elp("NaiveBayes m",                            nbm       = 2),
+  elp("NaiveBayes k",                            nbk       = 1),
+  elp("verbose mode for DIV",                    divVerbose= False),
   elp("DIV's cohen measure",                     divCohen  = 0.2),
   elp("DIV's trivally small delta",              divTrivial= 1.05),
   elp("""DIV's enough items in a cluster (if 0,
@@ -270,6 +273,11 @@ class Num(Summary):
     return i.norm(x) - i.norm(y)
   def furthest(i,x) :
     return i.up if x <(i.up-i.lo)/2 else i.lo
+  def like(i,x,*_):
+    var   = i.sd()**2
+    denom = (2*math.pi*var)**.5
+    num   = math.exp(-(x-i.mu)**2/(2*var))
+    return num/denom
 
 class Sym(Summary):
   def reset(i):
@@ -288,6 +296,8 @@ class Sym(Summary):
   def norm(i,x)   : return x
   def dist(i,x,y) : return 0 if x==y else 1
   def furthest(i,x): return "SoMEcrazyTHing"
+  def like(i,x,m,n,prior):
+    return (i.counts(x) + m*prior)/(n + m)
   def k(i):
     return len(i.counts.keys())
   def ent(i):
@@ -373,7 +383,6 @@ class Table(Pretty):
             col.details = Sym()
   def furthest(i,r1,cols=None,f=None):
     out,d = r1,-1
-    print("")
     for r2 in i._rows:
       if r1.rid != r2.rid:
         tmp = i.distance(r1,r2,cols,f)
@@ -449,6 +458,21 @@ def table2arff(tbl):
     print(', '.join(map(str,row)))
       
 
+def nbClassify(row,tbl,klasses):
+  k = THE.nbk
+  m = THE.nbm
+  guess,best,nh = None,-1-**32, len(klasses)
+  for this,klass in klasses.items():
+    like = prior = (klass.details.n + k) / (len(tbl._rows) + k * nh)
+    n = len(klass._rows)
+    for col in klass.decs:
+      x = row[col.pos]
+      like += col.details.like(x,m,n,prior)
+    if like > best:
+      guess,best = this,like
+  return guess
+  
+    
 ### Discretize ####################################################################
 class Range(Pretty):
   def __init__(i, label=None, n=None,  lo=None,  report=None,
@@ -586,7 +610,7 @@ def sway( population, tbl, better= bdom) :
   def split(items, mid,west=None, east=None,redo=20):
     assert redo>0
     cosine = lambda a,b,c: ( a*a + c*c - b*b )/( 2*c+ 0.0001 )
-    if west is None: west = any(items) #tbl.furthest(any(items))
+    if west is None: west = any(items) 
     if east is None: east = any(items)
     #if west is None: west = tbl.furthest(any(items))
     #if east is None: east = tbl.furthest(west)
@@ -598,19 +622,16 @@ def sway( population, tbl, better= bdom) :
        a = tbl.distance(item, west)
        b = tbl.distance(item, east)
        x = xs[ item.rid ] = cosine(a,b,c) # cosine rule
-       stats.add(abs(a-c)/(c+000.1))
-       stats.add(abs(b-c)/(c+000.1))
        if a > c and abs(a-c)  > THE.swayBigger:
-         dot(">")
-         return split(items, mid, west=item, east=east, redo=redo-1)
+         dot(">%s " % n)
+         return split(items, mid, west=west, east=item, redo=redo-1)
        if b > c and abs(b-c) > THE.swayBigger:
-         dot("<")
-         return split(items, mid, west=west, east=item, redo=redo-1)   
+         dot("<%s" % n)
+         return split(items, mid, west=item, east=east, redo=redo-1)   
     items = sorted(items, key= lambda item: xs[ item.rid ]) # sorted by 'x'
     return west, east, items[:mid], items[mid:] 
   # --------
-  stats=Num()
-  return cluster(population, []),stats
+  return cluster(population, [])
 
 
 ### Unittests #################################################################        
@@ -703,21 +724,22 @@ def _sample1():
 #     print(tmp[0][1], tmp[0][0])
 #     print(tmp[-1][1], tmp[-1][0])
 
-#@ok
+@ok
 def _sway(file="data/diabetes.csv"):
-  rseed()
-  tbl0 = csv2table(file)
-  print(0,tbl0.klass[0].details.counts,
-        tbl0.klass[0].details.ent())
-  leafs,r = sway(tbl0._rows,tbl0,above)
-  n=0
-  for c,tbl in enumerate(leafs):
-    n += len(tbl._rows)
-    print(c,tbl.klass[0].details.counts,
-          tbl.klass[0].details.ent())
-  print(n)
-  print(r,r.n,r.sd())
-
+  def worker():
+    rseed()
+    tbl0 = csv2table(file)
+    print(0,tbl0.klass[0].details.counts,
+          tbl0.klass[0].details.ent())
+    leafs = sway(tbl0._rows,tbl0,above)
+    n=0
+    for c,tbl in enumerate(leafs):
+      n += len(tbl._rows)
+      print(c,tbl.klass[0].details.counts,
+            tbl.klass[0].details.ent())
+    print(n)
+  print(timeit(worker))
+  
 @ok
 def _sdiv():
   rseed()
