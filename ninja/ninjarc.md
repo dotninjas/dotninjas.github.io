@@ -10,7 +10,6 @@ Download:
 ________
 
 ```bash
-#!/usr/bin/env bash
 # -*- sh -*-
 # For pretty version of this code, see
 # https://github.com/REU-SOS/SOS/blob/master/src/ninja/ninjarc.md
@@ -703,7 +702,7 @@ Cooked="$Safe"
 #>
 
 #Jar="$Here"/weka.jar
-Weka="$(which java) -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
+Weka="java -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
 
 #<
 # 1e) Write edtior config files somewhere then tweak call

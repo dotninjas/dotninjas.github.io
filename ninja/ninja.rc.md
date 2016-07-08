@@ -747,7 +747,7 @@ Cooked="$Safe"
 ```bash
 
 #Jar="$Here"/weka.jar
-Weka="$(which java) -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
+Weka="java -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
 
 ```
 
