@@ -1,7 +1,7 @@
 from __future__ import division,print_function
-import sys
+import sys,re
 sys.dont_write_bytecode=True
-from tricks import *
+#from tricks import *
 """
 
 e.g.
@@ -20,7 +20,10 @@ b a
 # sdsa                 ada           0    4    0   1    0   20  25  20   0   0  38 c
 """
 
-class Abcd: 
+class oo:
+  def __init__(i, **adds): i.__dict__.update(adds)
+
+class Abcd:
   def __init__(i,db="all",rx="all"):
     i.db = db; i.rx=rx;
     i.yes = i.no = 0
@@ -65,7 +68,7 @@ class Abcd:
       if (1-pf+pd): g    = 2*(1-pf)*pd / (1-pf+pd)
       if (prec+pd): f    = 2*prec*pd/(prec+pd)
       if (i.yes + i.no): acc= i.yes/(i.yes+i.no)
-      out[x] = o(db=i.db, rx=i.rx, yes= n(b+d),
+      out[x] = oo(db=i.db, rx=i.rx, yes= n(b+d),
                  all=n(a+b+c+d), a=n(a),
                  b=n(b), c=n(c), d=n(d), acc=p(acc), pd=p(pd),
                  pf=p(pf), prec=p(prec), f=p(f), g=p(g),x=x)
@@ -79,3 +82,17 @@ class Abcd:
         '{10:3d} {11:3d} {12:3d} {13:10s}').format(
           s.db, s.rx,  s.yes, s.a, s.b, s.c, s.d, 
           s.acc, s.pd, s.pf, s.prec, s.f, s.g, x))
+
+
+          
+if __name__ == "__main__":
+  log = None
+  for line in sys.stdin:
+    words= re.sub(r"[\n\r]","",line).split(" ")
+    one,two= words[0],words[1]
+    if log:
+      log(one,two)
+    else:
+      log=Abcd(one,two)
+  log.report()
+      

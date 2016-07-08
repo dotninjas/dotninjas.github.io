@@ -453,8 +453,8 @@ def div(lst,label=0, x= same, y= same, yKlass= Num):
                 if score1*THE.divTrivial < score:
                   if yKlass == Num:
                     cut,score= i,score1
-                  else:       
-                    k0,e0,ke0 = report.k(), report.ent(), ke(report)
+                  else:
+                    k0,e0,ke0 = yrhs.k(), yrhs.ent(), ke(yrhs)
                     gain   = k0 - score1
                     delta  = math.log(3**k0-2,2)-(ke0- ke(yrhs)-ke(ylhs))
                     border = (math.log(n-1,2) + delta)/n
@@ -659,10 +659,10 @@ def _sway(file="data/diabetes.csv"):
   print(n)
   print(r,r.n,r.sd())
 
-@ok
+#@ok
 def _sdiv():
   rseed()
-  n   = 3000
+  n   = 10000
   lst = [r()**2 for x in xrange(n)]
   lst = lst + [r()**0.5 for x in xrange(n)]
   for range in  div([(i,n) for i,n in enumerate(lst)],
@@ -675,7 +675,7 @@ def _ediv():
   rseed()
   lst0=list('abcd')
   lst = []
-  for _ in xrange(1000):
+  for _ in xrange(2500):
     for i,x in enumerate(lst0):
       lst += [[i+0.5*r(), x]] # 'a' is around 0.5, 'd' is around 3.5
   for y in div( lst,yKlass=Sym,

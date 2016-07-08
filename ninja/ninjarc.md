@@ -56,11 +56,13 @@ ________
 
 # Go to a clean new directory, on a pathname with no spaces,  type...
 #
-# 1. wget https://github.com/dotninjas/dotninjas.github.io/blob/master/ninja.zip
-# 2. unzip ninja.zip
-# 3. cd ninja
-# 4. sh ninja
-# 5. eg2
+# 1. Download https://github.com/dotninjas/dotninjas.github.io/archive/master.zip
+#    e.g. using wget https://github.com/dotninjas/dotninjas.github.io/archive/master.zip
+# 2. unzip master.zip
+# 3. mv dotninjas.github.io-master/* .
+# 4. cd ninja
+# 5. sh ninja
+# 6. eg2
 
 # If that works, you should see (in a few minutes), a report looking like this
 # (note, your numbers may differ due to your local random number generator,
@@ -576,7 +578,7 @@ eg5b() {
 }
 report() {
     echo $1
-    python "$Here/stats.py" < $2
+    python "$Here/stats.py" < $2.$1
 }
 #<
 # In any case, when this runs, we see that that `j48`'s `pd` distribution contains higher values and while its `pf`
@@ -624,21 +626,7 @@ eg7() {
         eg7
    fi
 }
-eg8() {
-    local data="data/jedit-4.1.arff"         # edit this line to change the data
-    local learners=" nb" # edit this line to change the leaners
-    local goal=true                         # edit this line to hunt for another goal                          
-    local i=$Tmp/eg8
-    if [ -f "$i.pd" ]; then
-       report pd $i
-       report pf $i
-    else
-        crossval 2 2 "$data" $Seed $learners | grep $goal > "$i"
-        gawk  '{print $2,$10}' "$i" > "$i.pd"
-        gawk  '{print $2,$11}' "$i" > "$i.pf"
-        eg7
-   fi
-}
+
 #<
 #
 # This produces the following. For `pd` _more_ is better so `j48` is the
