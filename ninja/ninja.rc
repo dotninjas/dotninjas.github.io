@@ -955,6 +955,9 @@ PS1=" $(here ..)/$(here .) \!> "'
 #>
 fyi() { echo "$@" 1>&2; } 
 
+sway() {
+    python sway.py
+    }
 #<
 # other
 #>

@@ -1026,6 +1026,9 @@ print to screen
 ```bash
 fyi() { echo "$@" 1>&2; } 
 
+sway() {
+    python sway.py
+    }
 ```
 
 other
