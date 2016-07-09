@@ -488,15 +488,12 @@ def table2arff(tbl):
     print(', '.join(map(str,row)))
       
 
-def nbClassify(row,tbl,klasses):
-  k = THE.nbk
-  m = THE.nbm
-  guess,best,nh = None, -1-10**32, len(klasses)
+def like(row,tbl,klasses):
+  guess,best,nh,k = None, -1*10**32, len(klasses), THE.nbk
   for this,klass in klasses.items():
     like = prior = (klass.my.n + k) / (len(tbl._rows) + k * nh)
     for col in klass.decs:
-      x = row[col.pos]
-      like += col.my.like(x,prior)
+      like *= col.my.like( row[col.pos], prior)
     if like > best:
       guess,best = this,like
   return guess
