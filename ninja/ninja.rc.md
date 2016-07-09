@@ -69,6 +69,14 @@ _____________________________________________________
 
 ## INSTALL:
 
+Note that the following instructions usually work fine for a Linux
+or a Mac box. If using Windows, two pieces of advice:
+
+- Just don't do it. Get a c9.io account instead. Much easier.
+- But if you really must, first install
+       - GitBash https://git-for-windows.github.io/
+       - Chocolatey https://chocolatey.org/
+
 Go to a clean new directory, on a pathname with no spaces,  type...
 
 1. Download https://github.com/dotninjas/dotninjas.github.io/archive/master.zip

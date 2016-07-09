@@ -489,11 +489,13 @@ def table2arff(tbl):
       
 
 def like(row,tbl,klasses):
-  guess,best,nh,k = None, -1*10**32, len(klasses), THE.nbk
+  guess, best, nh, k = None, -1*10**32, len(klasses), THE.nbk
   for this,klass in klasses.items():
     like = prior = (klass.my.n + k) / (len(tbl._rows) + k * nh)
     for col in klass.decs:
-      like *= col.my.like( row[col.pos], prior)
+      x=row[col.pos]
+      if x != Thing.UNKNOWN:
+        like *= col.my.like( x, prior)
     if like > best:
       guess,best = this,like
   return guess
