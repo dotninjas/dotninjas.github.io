@@ -2,6 +2,7 @@
 from __future__ import division,print_function
 import sys,re,random,argparse,traceback,time,math,copy
 from functools import wraps
+from collections import defaultdict
 sys.dont_write_bytecode=True
 
 ###############################################################################
@@ -127,7 +128,55 @@ def r()          : return random.random()
 def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
 def dot(x='.')   : sys.stdout.write(x); sys.stdout.flush()
+
+def rows(file,prep=same):
+  with open(file) as fs:
+    for line in fs:
+      line = re.sub(r'([\n\r\t]|#.*)', "", line)
+      row = map(lambda z:z.strip(), line.split(","))
+      if len(row)> 0:
+         yield prep(row) if prep else row
+
+def atoms(lst):
+  return map(atom,lst)
+
+def atom(x)  :
+  try: return int(x)
+  except:
+    try: return float(x)
+    except ValueError:
+      return Sym
+
+def timeit(f,repeats=1):
+  start = time.time()
+  for _ in xrange(repeats):
+    f()
+  stop = time.time()
+  return (stop - start)/repeats
   
+def atom2(x)  :
+  try: return float(x),Num
+  except ValueError: return x,Sym
+
+def kv(d, private="_"):
+  "Print dicts, keys sorted (ignoring 'private' keys)"
+  def _private(key):
+    return key[0] == private
+  def pretty(x):
+    return round(x,THE.round) if isa(x,float) else x
+  return '('+', '.join(['%s: %s' % (k,pretty(d[k]))
+          for k in sorted(d.keys())
+          if not _private(k)]) + ')'
+
+class Pretty(object):
+  def __repr__(i):
+    return i.__class__.__name__ + kv(i.__dict__)
+    
+class o(Pretty):
+  def __init__(i, **adds): i.__dict__.update(adds)
+  
+### LIB.test suite ##################################################
+
 def oks():
   global PASS, FAIL
   if THE.tests:
@@ -149,20 +198,9 @@ def ok(f):
       print(traceback.format_exc()) 
   return f
 
-def atom(x)  :
-  try: return float(x),Num
-  except ValueError: return x,Sym
 
-def kv(d, private="_"):
-  "Print dicts, keys sorted (ignoring 'private' keys)"
-  def _private(key):
-    return key[0] == private
-  def pretty(x):
-    return round(x,THE.round) if isa(x,float) else x
-  return '('+', '.join(['%s: %s' % (k,pretty(d[k]))
-          for k in sorted(d.keys())
-          if not _private(k)]) + ')'
 
+### LIB.tiles ##################################################
 def xtiles(lsts):
   lsts = map(sorted,lsts)
   lo   = sorted(map(lambda z:z[0], lsts))[0]
@@ -194,20 +232,7 @@ def xtile(lst,lo=None, up=None):
   tiles[ pos(0.5) ] = "*"
   return ''.join(tiles), ros(seen)
 
-def timeit(f,repeats=1):
-  start = time.time()
-  for _ in xrange(repeats):
-    f()
-  stop = time.time()
-  return (stop - start)/repeats
 
-
-class Pretty(object):
-  def __repr__(i):
-    return i.__class__.__name__ + kv(i.__dict__)
-    
-class o(Pretty):
-  def __init__(i, **adds): i.__dict__.update(adds)
 
 
 ### Sample  ###################################################################
@@ -269,7 +294,7 @@ class Thing(Summary):
   def add(i,x):
     if x != Thing.UNKNOWN:
       if i.my is None:
-        x,what  = atom(x)
+        x,what  = atom2(x)
         i.my = what()
       x = i.my.add(x)
       i.samples.add(x)
@@ -329,7 +354,7 @@ class Sym(Summary):
   def dist(i,x,y) : return 0 if x==y else 1
   def furthest(i,x): return "SoMEcrazyTHing"
   def like(i,x,prior):
-    return (i.counts(x) + THE.nbm*prior)/(i.n + THE.nbm)
+    return (i.counts.get(x,0) + THE.nbm*prior)/(i.n + THE.nbm)
   def k(i):
     return len(i.counts.keys())
   def ent(i):
@@ -392,9 +417,12 @@ class Table(Pretty):
     i.klass, i.gets, i.dep  = [], [], []
     i.kind = kind or Table.KIND
     map(i.__call__, inits)
-    
-  def row0(i):
-    return [col.txt for col in i.cols]
+  def isa(i,row):
+    return row[ i.klass[0].pos ]
+  def clone(i):
+    tbl = Table(kind=i.kind)
+    tbl([col.txt for col in i.cols])
+    return tbl
   def __call__(i,row):
     if i.cols:
       row     = [i.cols[put].add(row[get])
@@ -451,13 +479,7 @@ class Table(Pretty):
 
 
 ### Table filters #################################################################
-def rows(file):
-  with open(file) as fs:
-    for line in fs:
-      line = re.sub(r'([\n\r]|#.*)', "", line)
-      row = map(lambda z:z.strip(), line.split(","))
-      if len(row)> 0:
-        yield row
+
         
 def csv2table(file):
   tbl= Table()
@@ -477,7 +499,8 @@ def arff2rows(file):
       if row != []:
         if   seen("@relation", row[0]) : tbl.relation = row[1]
         if   seen("@attribute", row[0]): words += [row[1]]
-        elif data and len(row) > 1     : yield tbl,tbl(row)
+        elif data and len(row) > 1     :
+          yield tbl,tbl(row)
         elif seen("@data", row[0])     :
           data,div=True,","
           words[-1] = "=" + words[-1]
@@ -486,8 +509,6 @@ def arff2rows(file):
 def arff2table(file):
   for tbl,_ in arff2rows(file): pass
   return tbl
-          
-  
 
 def table2arff(tbl):
   rel = tbl.relation if "relation" in tbl.__dict__ else "data"
@@ -504,32 +525,47 @@ def table2arff(tbl):
     print(', '.join(map(str,row)))
       
 
-def nb(trainf,testf):
-  train = csv2table(trainf)
-  
+def like(row,all,klasses):
   guess, best, nh, k = None, -1*10**32, len(klasses), THE.nbk
-  for this,klass in klasses.items():
-    like = prior = (klass.my.n + k) / (len(tbl._rows) + k * nh)
-    for col in klass.decs:
-      x=row[col.pos]
-      if x != Thing.UNKNOWN:
-        like *= col.my.like( x, prior)
+  for this,tbl in klasses.items():
+    guess = guess or this
+    like  = prior = (len(tbl._rows)  + k) / (all + k * nh)
+    for col in tbl.decs:
+      if col.my:
+        x = row[col.pos]
+        if x != Thing.UNKNOWN:
+          like *= col.my.like( x, prior)
     if like > best:
       guess,best = this,like
   return guess
   
 ### Learners   ####################################################################
+def knn(train=THE.train,test=THE.test): return learn(knn1,train,test)
+def nb( train=THE.train,test=THE.test): return learn(nb1, train,test)
 
-def knn(train=None,test=None):
-  tbl = arff2table(train or THE.train)
+def learn(what, train, test):
+  print(train,test)
+  for actual, predicted in what(train, test):
+    print(actual, predicted)
+
+def nb1(train,test):
+  klasses = {}
+  for all,(tbl1,row) in enumerate(arff2rows(train)):
+    k = tbl1.isa(row)
+    if not k in klasses:
+      klasses[k] = tbl1.clone()
+    klasses[k](row)
+  for tbl2,row in arff2rows(test):
+    yield tbl2.isa(row), like(row,all,klasses)
+
+def knn1(train,test):
+  tbl = arff2table(train)
   k   = tbl.klass[0].pos
-  for _,r1 in arff2rows(test or THE.test):
+  for _,r1 in arff2rows(test):
     r2 = tbl.closest(r1)
     yield r1[k],r2[k]
+  
 
-def knns(train=None,test=None):
-  for actual, predicted in knn(train=train, test=test):
-    print(actual, predicted)
   
 ### Discretize ####################################################################
 class Range(Pretty):
@@ -705,10 +741,10 @@ def _ok2():
   assert 1==1, "equality failure"
 
 @ok
-def _atom():
-  x,t=atom('23.1')
+def _atom2():
+  x,t=atom2('23.1')
   assert isinstance(x,float), "coercion failure1"
-  x,t= atom('tim menzies')
+  x,t= atom2('tim menzies')
   assert isinstance(x,str), "coercion failure2"
 
 @ok

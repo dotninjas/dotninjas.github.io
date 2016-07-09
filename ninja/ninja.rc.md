@@ -704,11 +704,18 @@ that all the `pf` results are very similar. So we'll declare `j48` to be the ove
 The following code comes from papers I am writing right now. This code is hence highly unstable.
 
 eg001() {
-     local data="data/jedit-4.1.arff"         # edit this line to change the data
-     local learners="nb swayknn" # edit this line to change the leaners
-     local goal=true  
+    #eg001a true            data/jedit-4.1.arff
+    eg001a tested_positive data/diabetes.arff
+}
+eg001a() {
+     local goal="$1"
+     local data="$2"         # edit this line to change the data
      local i="$Tmp/eg001"
-     crossval 5 5 "$data" $Seed $learners | grep $goal >"$i"
+     rm -rf $i*
+     echo ""; echo "====== $data : $goal =============="; echo ""
+     echo $i
+     local learners="nb swaynb " # edit this line to change the leaners 
+     crossval 1 2 "$data" $Seed $learners | grep "$goal" > "$i"
      gawk  '{print $2,$10}' "$i" > "$i.pd"
      gawk  '{print $2,$11}' "$i" > "$i.pf"
      eg002   
@@ -1251,7 +1258,10 @@ adtree10() {
        $Weka $learner -B 10 -E -3 -p 0 -i -t $1
 }
 swayknn() {
-    sway --train $1 --test $2 --run knns
+    sway --train $1 --test $2 --run knn
+}
+swaynb() {
+    sway --train $1 --test $2 --run nb
 }
 ```
 
@@ -1310,8 +1320,9 @@ crossval() {
         for((i=1; i<=$m; i++)); do
             fyi "$learner $i"
             for((j=1; j<=$n; j++)); do
+              fyi "$learner $i $j"
               local arff="${i}_${j}.arff"		
-              trainTest $learner train$arff test$arff | abcd
+              trainTest $learner train$arff test$arff |  abcd
            done
         done
     done
