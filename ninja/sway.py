@@ -29,6 +29,7 @@ sys.dont_write_bytecode=True
 PASS=FAIL=0
 
 #TODO: normalize back in cdom
+#    : add "k" to knn
 
 help = lambda : [
 """
@@ -76,8 +77,9 @@ that are orders of magnitude different.
   elp("probability of reading a row",            some      = 1.00),
   elp("random number seed",                      seed      = 61409389),
   elp("training data (arff format",              train     = "train.csv"),
-  elp("""testing data (csv format). 
-       If null, do xval on train data.""",       test      = "test.csv"),
+  elp("testing data (csv format)",               test      = "test.csv"),
+  # --------------------------------------------------------------------
+  # System
   elp("Run some test function, then quit",       run       = "")
 ]
 def elp(h, **d):
@@ -383,19 +385,22 @@ class Table(Pretty):
   KLASS = "="
   SYM   = "!" 
   SKIP  = "-"
-  def __init__(i,inits=[]):
+  def __init__(i,inits=[],kind=None):
     i._rows = []
     i.cost = 0
     i.cols,  i.objs, i.decs = [], [], []
     i.klass, i.gets, i.dep  = [], [], []
+    i.kind = kind or Table.KIND
     map(i.__call__, inits)
+    
   def row0(i):
     return [col.txt for col in i.cols]
   def __call__(i,row):
     if i.cols:
       row     = [i.cols[put].add(row[get])
                  for put,get in enumerate(i.gets)]
-      i._rows += [ Table.KIND(row) ]
+      row     = i.kind(row)
+      i._rows += [ row ]
     else:
       for get,cell in enumerate(row):
         if cell[-1] != Table.SKIP:
@@ -411,14 +416,17 @@ class Table(Pretty):
           for col   in i.klass : i.dep   += [col]
           if cell[-1] == Table.SYM:
             col.my = Sym()
-  def furthest(i,r1,cols=None,f=None):
-    out,d = r1,-1
+    return row
+  def furthest(i,r1,cols=None,f=None, better=more,init= -1):
+    out,d = r1,init
     for r2 in i._rows:
       if r1.rid != r2.rid:
         tmp = i.distance(r1,r2,cols,f)
-        if tmp > d:
+        if better(tmp, d):
           out,d = r2,tmp
-    return r2
+    return out
+  def closest(i,r1,cols=None,f=None):
+    return i.furthest(r1,cols=cols,f=f,better=less, init=10**32)
   def distance(i,r1,r2,cols=None,f=None):
     cols = cols or Table.DIST(i)
     f    = f    or THE.edist
@@ -442,36 +450,44 @@ class Table(Pretty):
     return row # usually rewritten by subclass
 
 
-### Table filters #################################################################     
-def csv2table(file, some=1):
-  tbl= Table()
+### Table filters #################################################################
+def rows(file):
   with open(file) as fs:
     for line in fs:
-      if r() <= THE.some:
-        line = re.sub(r'([\n\r]|#.*)', "", line)
-        row = map(lambda z:z.strip(), line.split(","))
-        if len(row)> 1:
-          tbl(row)
+      line = re.sub(r'([\n\r]|#.*)', "", line)
+      row = map(lambda z:z.strip(), line.split(","))
+      if len(row)> 0:
+        yield row
+        
+def csv2table(file):
+  tbl= Table()
+  for row in rows(file):
+    tbl(row)
   return tbl
 
-def arff2table(file): 
+def arff2rows(file): 
   tbl   = Table()
   seen  = lambda x,y: re.match('^[ \t]*'+x,y,re.IGNORECASE)
   data,div  = False," "
   words = []
-  with open(file) as fs:
+  with open(file) as fs: # cant use 'rows' since i have to flip commans
     for line in fs:
       line = re.sub(r'([\n\r]|#.*)', "", line)
       row  = map(lambda z:z.strip(), line.split(div))
       if row != []:
         if   seen("@relation", row[0]) : tbl.relation = row[1]
         if   seen("@attribute", row[0]): words += [row[1]]
-        elif data and len(row) > 1     : tbl(row)
+        elif data and len(row) > 1     : yield tbl,tbl(row)
         elif seen("@data", row[0])     :
           data,div=True,","
           words[-1] = "=" + words[-1]
           tbl(words)
+
+def arff2table(file):
+  for tbl,_ in arff2rows(file): pass
   return tbl
+          
+  
 
 def table2arff(tbl):
   rel = tbl.relation if "relation" in tbl.__dict__ else "data"
@@ -488,7 +504,9 @@ def table2arff(tbl):
     print(', '.join(map(str,row)))
       
 
-def like(row,tbl,klasses):
+def nb(trainf,testf):
+  train = csv2table(trainf)
+  
   guess, best, nh, k = None, -1*10**32, len(klasses), THE.nbk
   for this,klass in klasses.items():
     like = prior = (klass.my.n + k) / (len(tbl._rows) + k * nh)
@@ -502,7 +520,17 @@ def like(row,tbl,klasses):
   
 ### Learners   ####################################################################
 
+def knn(train=None,test=None):
+  tbl = arff2table(train or THE.train)
+  k   = tbl.klass[0].pos
+  for _,r1 in arff2rows(test or THE.test):
+    r2 = tbl.closest(r1)
+    yield r1[k],r2[k]
 
+def knns(train=None,test=None):
+  for actual, predicted in knn(train=train, test=test):
+    print(actual, predicted)
+  
 ### Discretize ####################################################################
 class Range(Pretty):
   def __init__(i, label=None, n=None,  lo=None,  report=None,
@@ -655,7 +683,7 @@ def sway( population, tbl, better= bdom) :
          dot(">%s " % n)
          return split(items, mid, west=west, east=item, redo=redo-1)
        if b > c and abs(b-c) > THE.swayBigger:
-         dot("<%s" % n)
+         dot("<%s " % n)
          return split(items, mid, west=item, east=east, redo=redo-1)   
     items = sorted(items, key= lambda item: xs[ item.rid ]) # sorted by 'x'
     return west, east, items[:mid], items[mid:] 
@@ -718,7 +746,7 @@ def _col():
 
 @ok
 def _table(file= "data/weather.csv",show=True): 
-  tbl= csv2table(file)
+  tbl = csv2table(file)
   for col in tbl.cols:
     print(col.pos,col)
   print("===")
@@ -729,7 +757,7 @@ def _table(file= "data/weather.csv",show=True):
 
 @ok
 def _arff(file= "data/weather.arff",show=True):
-  tbl= arff2table(file)
+  tbl =  arff2table(file)
   for col in tbl.cols:
     print(col.pos,col)
   print("===")
@@ -749,15 +777,17 @@ def _table2():
                _table("data/diabetes100000.csv",False)),"seconds.")
 
 @ok
-def _distances(file= "data/weather.csv"):
+def _distances(file= "data/diabetes.csv"):
   rseed()
   tbl= csv2table(file)
   for r1 in shuffle(tbl._rows)[:4]:
-    tmp=tbl.distances(r1)
+    tmp  = tbl.distances(r1)
+    tmp1 = tbl.closest(r1)
     print("")
-    print(r1)
-    print(tmp[0][1], tmp[0][0])
-    print(tmp[-1][1], tmp[-1][0])
+    print("it   :",r1)
+    print("far  :",tmp[-1][1], tmp[-1][0])
+    print("near1:",tmp[0][1], tmp[0][0])
+    print("near2:",tmp1, tbl.distance(r1,tmp1))
 
 @ok
 def _sway(file="data/diabetes.csv"):
@@ -765,7 +795,7 @@ def _sway(file="data/diabetes.csv"):
   tbl0 = csv2table(file)
   print(0,tbl0.klass[0].my.counts,
         tbl0.klass[0].my.ent())
-  leafs = sway(tbl0._rows,tbl0,above)
+  leafs = sway(tbl0._rows,tbl0,below)
   n=0
   for c,tbl in enumerate(leafs):
     n += len(tbl._rows)
@@ -812,6 +842,11 @@ def _ediv():
                 y=lambda z: z[1]):
     print(y)
 
+@ok          
+def _knn():
+  for actual, predicted in knn("data/soybean.arff","data/soybean.arff"):
+    print(actual,predicted)
+          
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
   ok(f())

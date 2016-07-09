@@ -659,7 +659,8 @@ XXX
 eg8() {
     local data="data/jedit-4.1.arff"         # edit this line to change the data
     local learners="j48 jrip nb rbfnet bnet" # edit this line to change the leaners
-    local goal=true                          # edit this line to hunt for another goal                          
+    local goal=true                          # edit this line to hunt for another goal
+    
     local i="$Tmp/eg8"
     if [ -f "$i.pd" ]; then
        report pd "$i"
@@ -697,6 +698,31 @@ that all the `pf` results are very similar. So we'll declare `j48` to be the ove
         1 ,         jrip ,       9  ,    10 (  ---        * |------        ), 2,  4,  9, 11, 15
         1 ,       rbfnet ,       9  ,     5 (     -----   * |----          ), 4,  7,  9, 11, 14
         1 ,         bnet ,      11  ,     6 (        -----  |*   ------    ), 6,  9, 11, 14, 18
+
+## Experiments
+
+The following code comes from papers I am writing right now. This code is hence highly unstable.
+
+eg001() {
+     local data="data/jedit-4.1.arff"         # edit this line to change the data
+     local learners="nb swayknn" # edit this line to change the leaners
+     local goal=true  
+     local i="$Tmp/eg001"
+     crossval 5 5 "$data" $Seed $learners | grep $goal >"$i"
+     gawk  '{print $2,$10}' "$i" > "$i.pd"
+     gawk  '{print $2,$11}' "$i" > "$i.pf"
+     eg002   
+}
+
+eg002() {
+    local i="$Tmp/eg001"
+    if [ -f "$i.pd" ]; then
+       report pd "$i"
+       report pf "$i"
+    else
+       echo "please run eg001"
+   fi
+}
 
 ## Tricks for Writing Shell files
 
@@ -1051,7 +1077,7 @@ alias .....='cd ../../../../'
 alias .3='cd ../../../'
 alias .4='cd ../../../../'
 alias .5='cd ../../../../..'
-alias sway="python -B sway.py"
+alias sway="python -B $Here/sway.py"
 
 cat <<'EOF'> ~/.lessfilter
 #!/bin/sh
@@ -1224,6 +1250,9 @@ adtree10() {
        local learner=weka.classifiers.trees.ADTree
        $Weka $learner -B 10 -E -3 -p 0 -i -t $1
 }
+swayknn() {
+    sway --train $1 --test $2 --run knns
+}
 ```
 
 ### 6. Longer data mining functions
@@ -1231,7 +1260,8 @@ adtree10() {
 6a) just print the actual and predicted values.
 
 ```bash
-wantgot() { gawk '/:/ {
+wantgot() { gawk 'NF ==2 { print $0; next}
+                  /:/    {
                       split($2,a,/:/); actual    = a[2] 
                       split($3,a,/:/); predicted = a[2]
                       print actual, predicted }'
