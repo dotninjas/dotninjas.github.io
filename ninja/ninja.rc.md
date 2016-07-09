@@ -1026,9 +1026,6 @@ print to screen
 ```bash
 fyi() { echo "$@" 1>&2; } 
 
-sway() {
-    python sway.py
-    }
 ```
 
 other
@@ -1045,6 +1042,7 @@ alias .....='cd ../../../../'
 alias .3='cd ../../../'
 alias .4='cd ../../../../'
 alias .5='cd ../../../../..'
+alias sway="python -B sway.py"
 
 cat <<'EOF'> ~/.lessfilter
 #!/bin/sh
