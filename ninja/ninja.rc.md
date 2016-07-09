@@ -572,8 +572,8 @@ columns() {
 Here's the same functionality as eg5, but with named columns:
 
 ```bash
-eg5a() {  
-    local out="$Tmp/eg5a"
+eg6() {  
+    local out="$Tmp/eg6"
     crossval 5 5 data/weather.arff  $Seed j48 jrip  > $out
     columns class yes db pd  < $out > ${out}.pd
     columns class yes db pf <  $out > ${out}.pf
@@ -601,13 +601,13 @@ For each file, for each learner listed in column1, we can run significance test 
 file.
 
 ```bash
-eg5b() {
-    local i=$Tmp/eg5a
+eg7() {
+    local i=$Tmp/eg6
     if [ -f "$i.pd" ]; then
-       report pd $i.pf
-       report pf $i.pf
+       report pd $i
+       report pf $i
     else
-        echo "please run eg5a"
+        echo "please run eg7"
     fi
 }
 report() {
@@ -647,11 +647,11 @@ XXX
 
 ```bash
 
-eg7() {
+eg8() {
     local data="data/jedit-4.1.arff"         # edit this line to change the data
     local learners="j48 jrip nb rbfnet bnet" # edit this line to change the leaners
     local goal=true                          # edit this line to hunt for another goal                          
-    local i="$Tmp/eg7"
+    local i="$Tmp/eg8"
     if [ -f "$i.pd" ]; then
        report pd "$i"
        report pf "$i"
@@ -659,7 +659,7 @@ eg7() {
         crossval 5 5 "$data" $Seed $learners | grep $goal >"$i"
         gawk  '{print $2,$10}' "$i" > "$i.pd"
         gawk  '{print $2,$11}' "$i" > "$i.pf"
-        eg7
+        eg8
    fi
 }
 
