@@ -615,7 +615,7 @@ eg7() {
        report pd $i
        report pf $i
     else
-        echo "please run eg7"
+        echo "please first run eg6"
     fi
 }
 report() {
