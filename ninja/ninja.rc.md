@@ -704,8 +704,8 @@ that all the `pf` results are very similar. So we'll declare `j48` to be the ove
 The following code comes from papers I am writing right now. This code is hence highly unstable.
 
 eg001() {
-    #eg001a true            data/jedit-4.1.arff
-    eg001a tested_positive data/diabetes.arff
+    eg001a true    data/jedit-4.1.arff
+    eg001a tested_p data/diabetes.arff
 }
 eg001a() {
      local goal="$1"
@@ -715,7 +715,7 @@ eg001a() {
      echo ""; echo "====== $data : $goal =============="; echo ""
      echo $i
      local learners="nb swaynb " # edit this line to change the leaners 
-     crossval 1 2 "$data" $Seed $learners | grep "$goal" > "$i"
+     crossval 5 5 "$data" $Seed $learners | grep "$goal" > "$i"
      gawk  '{print $2,$10}' "$i" > "$i.pd"
      gawk  '{print $2,$11}' "$i" > "$i.pf"
      eg002   
@@ -1288,6 +1288,7 @@ trainTest() {
     local train="$2"
     local test="$3"
     echo "$learner $(basename $data | sed 's/.arff//')"
+    echo $learner $train $test >> log.txt
     "$learner" "$train" "$test" | wantgot
 }
 
@@ -1320,7 +1321,6 @@ crossval() {
         for((i=1; i<=$m; i++)); do
             fyi "$learner $i"
             for((j=1; j<=$n; j++)); do
-              fyi "$learner $i $j"
               local arff="${i}_${j}.arff"		
               trainTest $learner train$arff test$arff |  abcd
            done
