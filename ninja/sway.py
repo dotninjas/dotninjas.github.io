@@ -64,14 +64,38 @@ that are orders of magnitude different.
   # naive Bayes
   elp("NaiveBayes m",                            nbm       = 2),
   elp("NaiveBayes k",                            nbk       = 1),
+  # -----------------------------------------------------------------
+  # distance
   elp("power constant for distance",             edist     = 2.0),
   elp("what to use to compute distance",         dist      = ["decs", "objs"]),
-  elp("kind of model class",                     kind      = ["Row", "Model"]),
+  # -----------------------------------------------------------------
+  # optimization (general)
+  
+  elp("continuous domination bigger",            cdomBigger= 0.01),
+  elp("evalautions before pausing to reflect",   era       = 100),
+  elp("lives before quiting" ,                   lives     = 5),
+  elp("population size",                         pop       = 100),
+  elp("evaluation budget",                       budget    = 10000),
+  elp("mutation retries limit",                  retries   = 100),
+  elp("probability of mutating a field",         cf        = 0.3),
+  elp("splay size for the 'around1' mutatio",    splay     = 0.5),
+
+  
+  # -----------------------------------------------------------------
+  # optimization (sa)
+  elp("SA's cooling schedule",                   sa_cooling= 2),
+
+  # -----------------------------------------------------------------
+  # optimization (max walk sat)
+  elp("probablity of local search",              localSearch= 0.5),
+  elp("local search steps",              localSteps= 10),
+  
+  # misc
+  elp("kind of model class",                     kind      = ["Row", "Function"]),
   elp("Disable distance normalization",          raw       = False),
   elp("run unit tests",                          tests     = False),
   elp("tiles display width",                     tiles     = 40),
   elp("small effect size (Cliff's dela)",        cliff     = [0.147, 0.33, 0.474]),
-  elp("continuous domination bigger",            cdomBigger= 0.01),
   elp("keep at most, say, 256 samples",          samples   = [256,128,512,1024]),
   elp("in pretty print, round numbers",          round     = 3),
   elp("use quintiles if this==5 else quartiles", ntiles    = [5,4]),
@@ -129,6 +153,16 @@ def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
 def dot(x='.')   : sys.stdout.write(x); sys.stdout.flush()
 
+def any3(lst,a=None,b=None,c=None,it = same):
+  a = a or any(lst)
+  b = b or any(lst)
+  if it(a) == it(b):
+    return any3(lst,a=a,b=None,it=it)
+  c = any(lst)
+  if it(a) == it(c) or it(b) == it(c):
+    return any3(lst,a=a,b=b,it=it)
+  return a,b,c
+  
 def rows(file,prep=same):
   with open(file) as fs:
     for line in fs:
@@ -249,6 +283,8 @@ class Sample(Pretty):
     i.max = max or THE.samples
     i.cache = None
     map(i.add,init)
+  def sample(i):
+    return any(i._some)
   def add(i,x):
     i.n += 1
     now  = len(i._some)
@@ -291,6 +327,8 @@ class Thing(Summary):
   UNKNOWN = "?"
   def __init__(i,pos,txt):
     i.txt, i.pos, i.my, i.samples = txt, pos, None, Sample()
+  def sample(i):
+    return i.samples.sample()
   def add(i,x):
     if x != Thing.UNKNOWN:
       if i.my is None:
@@ -335,7 +373,8 @@ class Num(Summary):
     denom = (2*math.pi*var)**.5
     num   = math.exp(-(x-i.mu)**2/(2*var))
     return num/denom
-
+ 
+   
 class Sym(Summary):
   def reset(i):
      i.counts, i.most, i.mode, i.n = {},0,None,0
@@ -366,7 +405,8 @@ class Sym(Summary):
       if p:
         tmp -= p*math.log(p,2)
     return tmp
-
+  
+#XXX??/ dump Function
 
 ### Rows  ######################################################################
 class Row(Pretty):
@@ -374,35 +414,177 @@ class Row(Pretty):
   def __init__(i,lst):
     i.contents=lst
     i.rid = Row.rid = Row.rid+1
+    i.labelled=False
   def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
 
-class Model(Row):
-  def __init__(i,lst):
-    super(Model, i).__init__(lst)
+class Function(Row):
+  def __init__(i,lst,eval=same):
+    super(Function, i).__init__(lst)
+    i.eval = eval
     i.labelled=False
-  def ok(i):
-    return True
   def label(i,tbl,cost=1):
     """Row labels are cached back into the row. So labelling
         N times only incur a single labelling cost."""
     if not i.labelled:
-      i.label1()
+      i.eval(i)
       tbl.cost += cost
       for col in tbl.dep:
         col.add( i[col.pos] ) # and remember the new values
       i.labelled = True
     return i
-  def label1(i):
-    "Rewritten by subclass"
+
+### About ####################
+# ways to generate decisions and objectoves
+
+class About1number(Pretty):
+  def __init__(i,txt,lo=0, up=1,get=None):
+    i.txt, i.lo, i.up,i.want,i.get = txt,lo,up,None,get
+    if i.txt[0] == Table.MORE: i.want=more
+    if i.txt[0] == Table.LESS: i.want=less
+  def __call__(i):
+    return i.get() if i.get else i.lo + r()*(i.up - i.lo)
+  def wrap(i,x):
+    lo,hi = i.lo, i.hi
+    return lo if lo==hi else lo + ((x - lo) % (hi - lo))
+  def cap(i,x):
+    return max(i.lo, min(i.up, x))
+  def around1(i,x, splay=THE.splay):
+    gap = (i.up - i.lo)* splay
+    return x - gap*(0.5 + r())
+  def localSearch(i):
+    for j in xrange(0,THE.localSteps):
+      yield i.lo + j/10*(i.up - i.lo)
+  def de(i,a,b,c):
+    return a if r() > THE.cr else a + THE.f * (b - c)
+
+
+class About1symbol(Pretty):
+  def __init__(txt,*lst,**d):
+    i.txt = txt
+    for x in lst:
+      d[x] = 1
+    i.n, i.bias=0,[]
+    for x in d: 
+      n    += d[x]
+      i.bias += [(d[x],x)]
+    i.bias  = sorted(i.bias, reverse=True)
+  def __call__(i):
+    z = r()
+    for feq,thing in bias:
+      z -= freq/n
+      if z <= 0:
+        return thing
+    return bias[-1][0]
+  del wrap(i,x)  : return x
+  del cap(i,x)   : return x
+  def around(i,_): return i.__call__()
+  def localSearch(i):
+    for _,x in i.bias:
+      yield x
+  def de(i,a,b,c):
+    return a if r() > THE.rc else (b if r() > THE.f else c)
+
+N,S = About1number,About1symbol
+
+class About(Pretty):
+  def __init__(i):
+    i.evals = 0
+    i.about()
+  def ok(i,row): return True
+  def fresh(i) : return Function(["?"] * i.cols)
+  def decs(i)  :
+    for dec in i._decs: row[col.pos] = dec()
+    return row
+  def objs(i,row): 
+    if not row.labelled:
+      for obj in i._objs: row[col.pos] = obj()
+      i.evals += 1
+      row.labelled=True
+    return row
+  def ready(i,**d):
+    i._decs    = d["decs"]
+    i._objs    = d["objs"]
+    for pos,about1 in enumerate(i._decs + i._objs):
+      about1.pos = pos
+    i.cols = len(i._decs) + len(i._objs)
     return i
-      
+  
+class Fonseca(About):
+  n=3
+  def about(i):
+    def f1(row,tbl):
+      z = sum([( row[col.pos] - 1/sqrt(Fonseca.n))**2 for col in i.decs])
+      return 1 - math.e**(-1*z)
+    def f2(row,tbl):
+      z = sum([( row[col.pos] + 1/sqrt(Fonseca.n))**2 for col in i.decs])
+      return 1 - math.e**(-1*z)
+    return i.ready(decs= [N(str(n), lo= -4, up=4)
+                          for n in xrange(Fonseca.n)],
+                   objs= [N("<f1", get= f1),
+                          N("<f2", get= f2)])
+
+def wrap(x,col): return col.wrap(x)
+def cap(x,col):  return col.cap(x)
+  
+def around1(x,col)  : return col.around1(x)
+def any1thing(_,col): return col.__call__()
+  
+def deFiddles(old,new,about,pop):
+  a,b,c = any3(pop, it = lambda z: z.rid)
+  for col in about._decs:
+    i     = col.pos
+    new[i]= col.de(a[i], b[i], c[i])
+  new[one.pos] = old[any(about._decs).pos]
+  return new
+
+def maxWalkSatFiddles(old,new,about,_):
+  "cut down version, assumes only one goal"
+  col = any(about._decs)
+  best = old[col.pos]
+  better, sofar = (less,10**32) if col.want == less else (more, -1)
+  if r() > THE.localSearch: # just do anything
+    best = any1thing(best,col)
+  else: # local search
+    for x in col.localSearch():
+      new[col.pos] = x
+      about.objs(new)
+      tmp = new[ about.objs[0] ]
+      if better(tmp,sofar):
+        best,sofar = x,tmp
+  for col1 in about._decs:
+    new[col1.pos] = best if col1.pos == col.pos else old[col1.pos]
+  return new
+
+# de's eval counts increased by THE.localSteps
+# this mutate is also the creation thing. need to unify.
+# susp[ect that 'create' will be simpler
+
+def mutate(old, about, pop,
+           fiddles= None,      # e.g. de. maxWalkSat
+           fiddle = any1thing, # e.g. around1 or any1thing
+           after  = wrap,      # e.g. wrap or cap
+           retries= THE.retries):
+  assert retries > 0, 'too hard to satisfy model'
+  new = about.decs()
+  if fiddle:
+    for col in about._decs:
+      if r() < THE.cr:
+        new[col.pos] = fiddle(old[col.pos], col)  # eg around1, any1thing
+  if fiddles:
+    new = fiddles(old,new,about,pop) # eg deFiddles maxWalkSatFiddles
+  if after:  # e.g. wrap cap
+    for col in about._decs:
+      new[col.pos] = after(new[col.pos], about)
+  return new if about.ok(new) else mutate(old, about, pop,
+                                          fiddles,fiddle, after
+                                          retries=retries-1)
 
 ### Tables #####################################################################      
 class Table(Pretty):
   KIND  = {'Row'  : Row,
-           'Model': Model }[THE.kind]
+           'Function': Function }[THE.kind]
   DIST  = {'decs' : lambda tbl:tbl.decs,
            'objs' : lambda tbl:tbl.objs}[THE.dist]
   MORE  = ">"
@@ -419,9 +601,10 @@ class Table(Pretty):
     map(i.__call__, inits)
   def isa(i,row):
     return row[ i.klass[0].pos ]
-  def clone(i):
+  def clone(i,inits=[]):
     tbl = Table(kind=i.kind)
     tbl([col.txt for col in i.cols])
+    map(tbl.__call__,inits)
     return tbl
   def __call__(i,row):
     if i.cols:
@@ -693,7 +876,7 @@ def cdom(x, y, tbl):
 def sway( population, tbl, better= bdom) :
   def cluster(items, out):
     if len(items) < max(len(population)**THE.swayCull, THE.swayStop):
-      out.append(Table([tbl.row0()]+items)) 
+      out.append(tbl.clone(items))
     else:
       west, east, left, right = split(items, int(len(items)/2)) 
       if not better(east,west,tbl): cluster( left, out )
@@ -703,10 +886,11 @@ def sway( population, tbl, better= bdom) :
   def split(items, mid,west=None, east=None,redo=20):
     assert redo>0
     cosine = lambda a,b,c: ( a*a + c*c - b*b )/( 2*c+ 0.0001 )
-    if west is None: west = any(items) 
-    if east is None: east = any(items)
-    #if west is None: west = tbl.furthest(any(items))
+    #if west is None: west = any(items) 
+    #if east is None: east = any(items)
+    if west is None: west = tbl.furthest(any(items))
     #if east is None: east = tbl.furthest(west)
+    if east is None: east = any(items)
     while east.rid == west.rid:
       east = any(items)
     c      = tbl.distance(west, east)
@@ -726,7 +910,13 @@ def sway( population, tbl, better= bdom) :
   # --------
   return cluster(population, [])
 
+#def sa(kl
+### Models ####################
 
+                     
+   
+
+            
 ### Unittests #################################################################        
 
   
@@ -740,6 +930,13 @@ def _ok2():
   "Can at least one test pass?"
   assert 1==1, "equality failure"
 
+@ok
+def _any3():
+  lst=list('abcdefghijklmnopqrstuvwxyz')
+  for _ in xrange(30):
+    print(any3(lst))
+  
+  
 @ok
 def _atom2():
   x,t=atom2('23.1')
@@ -845,7 +1042,7 @@ def _sway(file="data/diabetes.csv"):
     tbl0 = csv2table(file)
     print(0,tbl0.klass[0].my.counts,
           tbl0.klass[0].my.ent())
-    leafs = sway(tbl0._rows,tbl0,above)
+    leafs = sway(tbl0._rows,tbl0,below)
     n=0
     for c,tbl in enumerate(leafs):
       n += len(tbl._rows)
@@ -882,7 +1079,14 @@ def _ediv():
 def _knn():
   for actual, predicted in knn("data/soybean.arff","data/soybean.arff"):
     print(actual,predicted)
-          
+
+@ok
+def _Fonseca():
+  rseed()
+  f= Fonseca()
+  for _ in xrange(10):
+    print(f.decs())
+  
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
   ok(f())
