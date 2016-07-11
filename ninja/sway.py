@@ -40,7 +40,10 @@ Useful routines for building simple data miners and optimizers
 "And He shall have sway and dominion over all the world." 
 -- Wolf (a.k.a. Eddie Izzard) 
 
-Implements incremental sway (O(N), not O(3N)).
+Most of the complexity here is the enable a generic, say, SA that can have 
+different  models passed to it as  argument.
+
+Can implements incremental sway (O(N), not O(3N)).
 
 For simplicity's sake, there is no normalization on objectives.  Hence, the eval
 functions need to be well-behaved i.e. ideally 0..1 or, more realistically, (a)
@@ -136,6 +139,8 @@ THE = options(*help())
 def same(x)  : return x
 def less(x,y): return x < y
 def more(x,y): return x > y
+def square(x): return x*x
+def exp(x)   : return math.exp(x)
 def max(x,y) : return x if x>y else y
 def min(x,y) : return x if x<y else y
 def ro(x)    : return round(x,THE.round)
@@ -443,11 +448,13 @@ class About1number(Pretty):
     i.txt, i.lo, i.up,i.want,i.get = txt,lo,up,None,get
     if i.txt[0] == Table.MORE: i.want=more
     if i.txt[0] == Table.LESS: i.want=less
-  def __call__(i):
-    return i.get() if i.get else i.lo + r()*(i.up - i.lo)
+  def __call__(i,*lst):
+    return i.get(*lst) if i.get else i.lo + r()*(i.up - i.lo)
+  def norm(i,x):
+    return max(i.lo, min(i.up, (x - i.lo)/(i.up - i.lo + 1E-16)))
   def wrap(i,x):
-    lo,hi = i.lo, i.hi
-    return lo if lo==hi else lo + ((x - lo) % (hi - lo))
+    lo,up = i.lo, i.up
+    return lo if lo==up else lo + ((x - lo) % (up - lo))
   def cap(i,x):
     return max(i.lo, min(i.up, x))
   def around1(i,x, splay=THE.splay):
@@ -456,8 +463,8 @@ class About1number(Pretty):
   def localSearch(i):
     for j in xrange(0,THE.localSteps):
       yield i.lo + j/10*(i.up - i.lo)
-  def de(i,a,b,c):
-    return a if r() > THE.cr else a + THE.f * (b - c)
+  def smear(i,a,b,c):
+    return a if r() > THE.cf else a + THE.f * (b - c)
 
 
 class About1symbol(Pretty):
@@ -477,13 +484,14 @@ class About1symbol(Pretty):
       if z <= 0:
         return thing
     return bias[-1][0]
-  del wrap(i,x)  : return x
-  del cap(i,x)   : return x
+  def norm(i,x)  : return x
+  def wrap(i,x)  : return x
+  def cap(i,x)   : return x
   def around(i,_): return i.__call__()
   def localSearch(i):
     for _,x in i.bias:
       yield x
-  def de(i,a,b,c):
+  def smear(i,a,b,c):
     return a if r() > THE.rc else (b if r() > THE.f else c)
 
 N,S = About1number,About1symbol
@@ -494,15 +502,24 @@ class About(Pretty):
     i.about()
   def ok(i,row): return True
   def fresh(i) : return Function(["?"] * i.cols)
-  def decs(i)  :
-    for dec in i._decs: row[col.pos] = dec()
-    return row
+  def decsObjs(i):
+    return i.objs(i.decs())
+  def decs(i,retries = THE.retries)  :
+    assert retries > 0, 'too hard to generate valid decisions'
+    row = i.fresh()
+    for dec in i._decs:
+      row[dec.pos] = dec()
+    return row if i.ok(row) else i.decs(retries - 1)
   def objs(i,row): 
     if not row.labelled:
-      for obj in i._objs: row[col.pos] = obj()
+      for obj in i._objs: row[obj.pos] = obj(row)
       i.evals += 1
       row.labelled=True
     return row
+  def normObjs(i,row):
+    row = i.objs(row)
+    norms  = [ col.norm( row[col.pos] ) for col in i._objs]
+    return sum( map(square, norms) ) **0.5
   def ready(i,**d):
     i._decs    = d["decs"]
     i._objs    = d["objs"]
@@ -514,28 +531,54 @@ class About(Pretty):
 class Fonseca(About):
   n=3
   def about(i):
-    def f1(row,tbl):
-      z = sum([( row[col.pos] - 1/sqrt(Fonseca.n))**2 for col in i.decs])
+    def f1(row):
+      z = sum([( row[col.pos] - 1/math.sqrt(Fonseca.n))**2
+               for col in i._decs])
       return 1 - math.e**(-1*z)
-    def f2(row,tbl):
-      z = sum([( row[col.pos] + 1/sqrt(Fonseca.n))**2 for col in i.decs])
+    def f2(row):
+      
+      z = sum([( row[col.pos] + 1/math.sqrt(Fonseca.n))**2
+               for col in i._decs])
       return 1 - math.e**(-1*z)
     return i.ready(decs= [N(str(n), lo= -4, up=4)
                           for n in xrange(Fonseca.n)],
                    objs= [N("<f1", get= f1),
                           N("<f2", get= f2)])
 
+class Viennet4(About):
+  n=2
+  def ok(i,row):
+     one,two = row[0],row[1]
+     g1 = -1*two - 4*one + 4
+     g2 = one + 1            
+     g3 = two - one + 2
+     return g1 >= 0 and g2 >= 0 and g3 >= 0
+  def about(i):
+    def f1(row):
+      one,two = row[0], row[1]
+      return (one - 2)**2 /2 + (two + 1)**2 /13 + 3
+    def f2(row):
+      one,two = row[0], row[1]
+      return (one + two - 3)**2 /175 + (2*two - one)**2 /17 - 13
+    def f3(row):
+      one,two= row[0], row[1]
+      return (3*one - 2*two + 4)**2 /8 + (one - two + 1)**2 /27 + 15
+    return i.ready(decs= [N(str(n),lo=-4,up=4)   for n in range(Viennet4.n)],
+                   objs= [N("<f1",lo=  0, up= 10, get=f1),
+                          N("<f2",lo=  -15, up= -5, get=f2),
+                          N("<f3",lo= 12, up= 27, get=f3)])     
+  
 def wrap(x,col): return col.wrap(x)
 def cap(x,col):  return col.cap(x)
   
 def around1(x,col)  : return col.around1(x)
-def any1thing(_,col): return col.__call__()
-  
+def any1thing(_,col): return col()
+
 def deFiddles(old,new,about,pop):
   a,b,c = any3(pop, it = lambda z: z.rid)
   for col in about._decs:
     i     = col.pos
-    new[i]= col.de(a[i], b[i], c[i])
+    new[i]= col.smear(a[i], b[i], c[i])
   new[one.pos] = old[any(about._decs).pos]
   return new
 
@@ -561,7 +604,7 @@ def maxWalkSatFiddles(old,new,about,_):
 # this mutate is also the creation thing. need to unify.
 # susp[ect that 'create' will be simpler
 
-def mutate(old, about, pop,
+def mutate(old, about, pop=[],
            fiddles= None,      # e.g. de. maxWalkSat
            fiddle = any1thing, # e.g. around1 or any1thing
            after  = wrap,      # e.g. wrap or cap
@@ -570,15 +613,15 @@ def mutate(old, about, pop,
   new = about.decs()
   if fiddle:
     for col in about._decs:
-      if r() < THE.cr:
+      if r() < THE.cf:
         new[col.pos] = fiddle(old[col.pos], col)  # eg around1, any1thing
   if fiddles:
     new = fiddles(old,new,about,pop) # eg deFiddles maxWalkSatFiddles
   if after:  # e.g. wrap cap
     for col in about._decs:
-      new[col.pos] = after(new[col.pos], about)
+      new[col.pos] = after(new[col.pos], col)
   return new if about.ok(new) else mutate(old, about, pop,
-                                          fiddles,fiddle, after
+                                          fiddles,fiddle, after,
                                           retries=retries-1)
 
 ### Tables #####################################################################      
@@ -910,7 +953,33 @@ def sway( population, tbl, better= bdom) :
   # --------
   return cluster(population, [])
 
-#def sa(kl
+              
+def sa(about=Fonseca()):
+  def score(row): return about.normObjs(row)
+  kmax   = THE.budget
+  s0 = s = sb = about.decsObjs()
+  e = eb = score(s)
+  k = 1
+  while k < THE.budget:
+    dot("\n%5.3f |" % eb)
+    for _ in xrange(THE.era):
+      say= "."
+      k += 1
+      t  =  k /kmax
+      sn = mutate(s,about)
+      en = score(sn)
+      if en < eb:
+        say = "!"
+        sb,eb = sn,en
+      if en < e:
+        say = "<"
+        s,e   = sn, en
+      elif exp((e - en)/t) < r():
+        say = "?"
+        s,e   = sn, en
+      dot(say)
+  return s0, sb
+
 ### Models ####################
 
                      
@@ -1085,7 +1154,27 @@ def _Fonseca():
   rseed()
   f= Fonseca()
   for _ in xrange(10):
-    print(f.decs())
+    print(f.decsObjs())
+@ok
+def _Viennet4():
+  rseed()
+  f= Viennet4()
+  s1,s2,s3 = Num(), Num(), Num()
+  for _ in xrange(100000):
+    row = f.decsObjs()
+    s1.add(row[2]), s2.add(row[3]), s3.add(row[4])
+  print(s1.lo,s1.up)
+  print(s2.lo,s2.up)
+  
+  print(s3.lo,s3.up)
+
+@ok
+def _sa():
+  rseed()
+  s0, sb = sa(Fonseca())
+  print("")
+  print(s0)
+  print(sb)
   
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
