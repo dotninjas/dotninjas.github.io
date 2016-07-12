@@ -1,9 +1,10 @@
 #!/usr/bin/python
 from __future__ import division,print_function
-import sys,re,random,argparse,traceback,time,math,copy
+import sys,re,random,argparse,traceback,time,math,copy,pprint
 from functools import wraps
 from collections import defaultdict
 sys.dont_write_bytecode=True
+pp = pprint.PrettyPrinter(indent=4)
 
 ###############################################################################
 # Copyright (c) 2016 tim@menzies.us
@@ -86,7 +87,7 @@ that are orders of magnitude different.
   
   # -----------------------------------------------------------------
   # optimization (sa)
-  elp("SA's cooling schedule",                   sa_cooling= 2),
+  elp("SA's cooling schedule",                   cooling= 2),
 
   # -----------------------------------------------------------------
   # optimization (max walk sat)
@@ -94,7 +95,6 @@ that are orders of magnitude different.
   elp("local search steps",              localSteps= 10),
   
   # misc
-  elp("kind of model class",                     kind      = ["Row", "Function"]),
   elp("Disable distance normalization",          raw       = False),
   elp("run unit tests",                          tests     = False),
   elp("tiles display width",                     tiles     = 40),
@@ -141,6 +141,7 @@ def less(x,y): return x < y
 def more(x,y): return x > y
 def square(x): return x*x
 def exp(x)   : return math.exp(x)
+def dinc(d,x): d[x] = d.get(x,0) + 1
 def max(x,y) : return x if x>y else y
 def min(x,y) : return x if x<y else y
 def ro(x)    : return round(x,THE.round)
@@ -424,21 +425,21 @@ class Row(Pretty):
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
 
-class Function(Row):
-  def __init__(i,lst,eval=same):
-    super(Function, i).__init__(lst)
-    i.eval = eval
-    i.labelled=False
-  def label(i,tbl,cost=1):
-    """Row labels are cached back into the row. So labelling
-        N times only incur a single labelling cost."""
-    if not i.labelled:
-      i.eval(i)
-      tbl.cost += cost
-      for col in tbl.dep:
-        col.add( i[col.pos] ) # and remember the new values
-      i.labelled = True
-    return i
+# class Function(Row):
+#   def __init__(i,lst,eval=same):
+#     super(Function, i).__init__(lst)
+#     i.eval = eval
+#     i.labelled=False
+#   def label(i,tbl,cost=1):
+#     """Row labels are cached back into the row. So labelling
+#         N times only incur a single labelling cost."""
+#     if not i.labelled:
+#       i.eval(i)
+#       tbl.cost += cost
+#       for col in tbl.dep:
+#         col.add( i[col.pos] ) # and remember the new values
+#       i.labelled = True
+#     return i
 
 ### About ####################
 # ways to generate decisions and objectoves
@@ -451,7 +452,7 @@ class About1number(Pretty):
   def __call__(i,*lst):
     return i.get(*lst) if i.get else i.lo + r()*(i.up - i.lo)
   def norm(i,x):
-    return max(i.lo, min(i.up, (x - i.lo)/(i.up - i.lo + 1E-16)))
+    return max(0, min(1, (x - i.lo)/(i.up - i.lo + 1E-16)))
   def wrap(i,x):
     lo,up = i.lo, i.up
     return lo if lo==up else lo + ((x - lo) % (up - lo))
@@ -465,7 +466,8 @@ class About1number(Pretty):
       yield i.lo + j/10*(i.up - i.lo)
   def smear(i,a,b,c):
     return a if r() > THE.cf else a + THE.f * (b - c)
-
+  def better(i,x,y):
+    return i.want(x,y) if i.want else False
 
 class About1symbol(Pretty):
   def __init__(txt,*lst,**d):
@@ -487,12 +489,14 @@ class About1symbol(Pretty):
   def norm(i,x)  : return x
   def wrap(i,x)  : return x
   def cap(i,x)   : return x
+  def better(i,x,y): return False
   def around(i,_): return i.__call__()
   def localSearch(i):
     for _,x in i.bias:
       yield x
   def smear(i,a,b,c):
     return a if r() > THE.rc else (b if r() > THE.f else c)
+  
 
 N,S = About1number,About1symbol
 
@@ -501,7 +505,7 @@ class About(Pretty):
     i.evals = 0
     i.about()
   def ok(i,row): return True
-  def fresh(i) : return Function(["?"] * i.cols)
+  def fresh(i) : return Row(["?"] * i.cols)
   def decsObjs(i):
     return i.objs(i.decs())
   def decs(i,retries = THE.retries)  :
@@ -519,7 +523,7 @@ class About(Pretty):
   def normObjs(i,row):
     row = i.objs(row)
     norms  = [ col.norm( row[col.pos] ) for col in i._objs]
-    return sum( map(square, norms) ) **0.5
+    return sum( map(square, norms) ) ** 0.5  / len(i._objs)**0.5
   def ready(i,**d):
     i._decs    = d["decs"]
     i._objs    = d["objs"]
@@ -626,8 +630,7 @@ def mutate(old, about, pop=[],
 
 ### Tables #####################################################################      
 class Table(Pretty):
-  KIND  = {'Row'  : Row,
-           'Function': Function }[THE.kind]
+  
   DIST  = {'decs' : lambda tbl:tbl.decs,
            'objs' : lambda tbl:tbl.objs}[THE.dist]
   MORE  = ">"
@@ -635,17 +638,16 @@ class Table(Pretty):
   KLASS = "="
   SYM   = "!" 
   SKIP  = "-"
-  def __init__(i,inits=[],kind=None):
+  def __init__(i,inits=[]):
     i._rows = []
     i.cost = 0
     i.cols,  i.objs, i.decs = [], [], []
     i.klass, i.gets, i.dep  = [], [], []
-    i.kind = kind or Table.KIND
     map(i.__call__, inits)
   def isa(i,row):
     return row[ i.klass[0].pos ]
   def clone(i,inits=[]):
-    tbl = Table(kind=i.kind)
+    tbl = Table()
     tbl([col.txt for col in i.cols])
     map(tbl.__call__,inits)
     return tbl
@@ -653,7 +655,7 @@ class Table(Pretty):
     if i.cols:
       row     = [i.cols[put].add(row[get])
                  for put,get in enumerate(i.gets)]
-      row     = i.kind(row)
+      row     = Row(row)
       i._rows += [ row ]
     else:
       for get,cell in enumerate(row):
@@ -885,14 +887,14 @@ def below(x,y,tbl):
   "single objective"
   return above(x,y,tbl, better=less)
   
-def bdom(x, y, tbl):
+def bdom(x, y, about):
   "multi objective"
-  x= label(tbl, x)
-  y= label(tbl, y)
+  x=about.objs(x)
+  y=about.objs(x)
   betters = 0
-  for col,better in tbl.objs:
+  for obj in about._objs:
     x1,y1 = x[col.pos], y[col.pos]
-    if better(x1,y1) : betters += 1
+    if obj.better(x1,y1) : betters += 1
     elif x1 != y1    : return False # must be worse, go quit
   return betters > 0
 
@@ -955,31 +957,67 @@ def sway( population, tbl, better= bdom) :
 
               
 def sa(about=Fonseca()):
-  def score(row): return about.normObjs(row)
-  kmax   = THE.budget
-  s0 = s = sb = about.decsObjs()
-  e = eb = score(s)
-  k = 1
-  while k < THE.budget:
-    dot("\n%5.3f |" % eb)
+  def score(row) : return about.normObjs(row)
+  def inc(k)     : events[k] = events.get(k,0) + 1
+  def improved() : return events.get('!',0) > 0
+  about.evals = 0
+  s0 = s  = sb = about.decsObjs()
+  e  = eb = score(s)
+  k, frontier, events = 1, [],{}
+  lives = THE.lives + 1
+  while about.evals < THE.budget:
+    dot(" %s\n%5.3f |" % (kv(events),eb))
+    lives = THE.lives if improved() else lives - 1
+    if not lives:
+      break
+    events = {'!' : 0}
     for _ in xrange(THE.era):
-      say= "."
+      event= "."
       k += 1
-      t  =  k /kmax
       sn = mutate(s,about)
       en = score(sn)
       if en < eb:
-        say = "!"
-        sb,eb = sn,en
-      if en < e:
-        say = "<"
-        s,e   = sn, en
-      elif exp((e - en)/t) < r():
-        say = "?"
-        s,e   = sn, en
-      dot(say)
-  return s0, sb
+        sb,eb    = s,e = sn,en
+        inc("!")
+        frontier = [sn]
+      elif en < e:
+        s,e = sn, en
+        event = "<"
+      else:
+        frontier += [sn]
+        t = k/THE.budget
+        if exp((e - en)/t) < r()**THE.cooling:
+          event = "?"
+          s,e   = sn, en
+      inc(event)
+      dot(event)
+  return o(s0=s0, sb=sb,
+           frontier=frontier) # list of things not worse than best
 
+# def mws(about=Fonseca(), better=bdom):
+#   def score(row) : return about.normObjs(row)
+#   def inc(k)     : events[k] = events.get(k,0) + 1
+#   def improved() : return events.get('!',0) > 0
+#   maxTries  =  10
+#   maxChange = 100
+#   lives      =  5
+#   about.evals=  0
+#   for _ in xrange(maxTries):
+#     lives = THE.lives if improved() else lives - 1
+#     if not lives:
+#       break
+#     events = {'!' : 0}
+#     sb = s = about.decsObjs()
+#     for _ in xrange(maxChange):
+#       s = mutate(s,about,fiddles=maxWalkSatFiddles)
+#       if better(s,sb,about):
+#         inc("!")
+#         s1 = copy(s)
+#         sb = s1
+#         frontier = [s1]
+        
+#   return sb    
+      
 ### Models ####################
 
                      
@@ -1169,12 +1207,18 @@ def _Viennet4():
   print(s3.lo,s3.up)
 
 @ok
+def _bdom():
+  print(1)
+  
+@ok
 def _sa():
   rseed()
-  s0, sb = sa(Fonseca())
+  out = sa(Viennet4
+              ())
   print("")
-  print(s0)
-  print(sb)
+  print(out.s0)
+  print(out.sb)
+  print(len(out.frontier))
   
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
