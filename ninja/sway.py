@@ -425,21 +425,6 @@ class Row(Pretty):
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
 
-# class Function(Row):
-#   def __init__(i,lst,eval=same):
-#     super(Function, i).__init__(lst)
-#     i.eval = eval
-#     i.labelled=False
-#   def label(i,tbl,cost=1):
-#     """Row labels are cached back into the row. So labelling
-#         N times only incur a single labelling cost."""
-#     if not i.labelled:
-#       i.eval(i)
-#       tbl.cost += cost
-#       for col in tbl.dep:
-#         col.add( i[col.pos] ) # and remember the new values
-#       i.labelled = True
-#     return i
 
 ### About ####################
 # ways to generate decisions and objectoves
@@ -516,9 +501,12 @@ class About(Pretty):
     return row if i.ok(row) else i.decs(retries - 1)
   def objs(i,row): 
     if not row.labelled:
-      for obj in i._objs: row[obj.pos] = obj(row)
+      row = i.objs1(row)
       i.evals += 1
       row.labelled=True
+    return row
+  def objs1(i,row):
+    for obj in i._objs: row[obj.pos] = obj(row)
     return row
   def normObjs(i,row):
     row = i.objs(row)
@@ -571,7 +559,28 @@ class Viennet4(About):
                    objs= [N("<f1",lo=  0, up= 10, get=f1),
                           N("<f2",lo=  -15, up= -5, get=f2),
                           N("<f3",lo= 12, up= 27, get=f3)])     
-  
+
+class DTLZ6(About):
+  "This is called DTLZ6 in the original paper but listed at DTLZ7 in jmetal"
+  def __init__(i, nobjs = 3):
+    i.ndecs, i.nobjs = nobjs-1,nobjs
+    About.__init__(i)
+  def objs1(i,row):
+    k = i.nobjs
+    g = sum([row[ col.pos ] for col in i._decs])
+    g = 1 + 9*g/k
+    f = [ row[col.pos] for col in i._objs[:-1] ]
+    h = sum([(f[j]/(1+g) *(1+math.sin(3*math.pi*f[j])))
+             for j in xrange(i.nobjs)])
+    h = i.nobjs - h
+    f += [(1+g)*h]
+    for pos,x in enumerate(f):
+      row[i.decs + pos + 1] = f[pos]
+    return row
+  def about(i):
+    return i.ready(decs = [N(str(n)) for n in range(i.ndecs)],
+                   objs = [N("<f%s" % n) for n in range(i.nobjs)])
+
 def wrap(x,col): return col.wrap(x)
 def cap(x,col):  return col.cap(x)
   
@@ -1219,7 +1228,9 @@ def _sa():
   print(out.s0)
   print(out.sb)
   print(len(out.frontier))
+
   
+DTLZ6(4).decsObjs()
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
   ok(f())
