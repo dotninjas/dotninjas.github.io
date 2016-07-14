@@ -799,6 +799,7 @@ Weka="java -Xmx1024M -cp $Here/weka.jar" # give weka as much memory as possible
 ```bash
 
 Ed="/Applications/Emacs.app/Contents/MacOS/Emacs"
+Vim="/Applications/MacVim.app/Contents/MacOS/MacVim"
 Edot="/tmp/edot$$"
 
 e() { "$Ed" -q -l "$Edot" $* &  # $Edot defined below 
@@ -806,7 +807,8 @@ e() { "$Ed" -q -l "$Edot" $* &  # $Edot defined below
 
 Vdot="/tmp/vdot$$"
 
-v() { vim  -u "$Vdot" $*  
+v() { 
+  mvim -u $Vdot $*  
 }
 cat << 'EOF' > "$Vdot"
 set backupdir-=.
@@ -842,7 +844,6 @@ set smartindent
 set tabstop=2
 set shiftwidth=2
 set expandtab ts=2 sw=2 ai
-
 " Help for viminfo is at:  :he 'viminfo'
 "   '10  : marks will be remembered for up to 10 previously edited files
 "   "100 : will save up to 100 lines for each register
@@ -853,7 +854,9 @@ set expandtab ts=2 sw=2 ai
 "autocmd BufReadPost * if line("'\"") > 0|if line("'\"") <=
 "line("$")|exe("norm '\"")|else|exe "norm $"|endif|endif
 "set t_ti= t_te=
-colors elflord
+colors default
+set splitbelow
+set splitright
 EOF
 
 cat << 'EOF' > "$Edot"

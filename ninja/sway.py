@@ -75,7 +75,7 @@ that are orders of magnitude different.
   # -----------------------------------------------------------------
   # optimization (general)
   
-  elp("continuous domination bigger",            cdomBigger= 0.01),
+  elp("continuous domination bigger",            cdomBigger= 0.005),
   elp("evalautions before pausing to reflect",   era       = 100),
   elp("lives before quiting" ,                   lives     = 5),
   elp("population size",                         pop       = 100),
@@ -157,7 +157,7 @@ def rseed(s=None): random.seed(s or THE.seed)
 def r()          : return random.random()
 def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
-def dot(x='.')   : sys.stdout.write(x); sys.stdout.flush()
+def dot(x='.')   : sys.stdout.write(str(x)); sys.stdout.flush()
 
 def any3(lst,a=None,b=None,c=None,it = same):
   a = a or any(lst)
@@ -424,7 +424,7 @@ class Row(Pretty):
   def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
-
+  def __len__(i)        : return len(i.contents)
 
 ### About ####################
 # ways to generate decisions and objectoves
@@ -437,7 +437,13 @@ class About1number(Pretty):
   def __call__(i,*lst):
     return i.get(*lst) if i.get else i.lo + r()*(i.up - i.lo)
   def norm(i,x):
-    return max(0, min(1, (x - i.lo)/(i.up - i.lo + 1E-16)))
+    if x < i.lo:
+      i.lo = x
+      return 0
+    if x > i.up:
+      i.hi = x
+      return 1
+    return (x - i.lo)/(i.up - i.lo + 1E-16)
   def wrap(i,x):
     lo,up = i.lo, i.up
     return lo if lo==up else lo + ((x - lo) % (up - lo))
@@ -453,6 +459,11 @@ class About1number(Pretty):
     return a if r() > THE.cf else a + THE.f * (b - c)
   def better(i,x,y):
     return i.want(x,y) if i.want else False
+  def worse(i,x,y):
+    if not i.want   : return False
+    if x == y       : return False
+    if i.better(x,y): return False
+    return True
 
 class About1symbol(Pretty):
   def __init__(txt,*lst,**d):
@@ -475,6 +486,7 @@ class About1symbol(Pretty):
   def wrap(i,x)  : return x
   def cap(i,x)   : return x
   def better(i,x,y): return False
+  def worse(i,x,y):  return False
   def around(i,_): return i.__call__()
   def localSearch(i):
     for _,x in i.bias:
@@ -485,14 +497,15 @@ class About1symbol(Pretty):
 
 N,S = About1number,About1symbol
 
-class About(Pretty):
+class Abouts(Pretty):
   def __init__(i):
     i.evals = 0
-    i.about()
+    i.abouts()
   def ok(i,row): return True
   def fresh(i) : return Row(["?"] * i.cols)
   def decsObjs(i):
-    return i.objs(i.decs())
+    row0 = i.decs()
+    return i.objs(row0)
   def decs(i,retries = THE.retries)  :
     assert retries > 0, 'too hard to generate valid decisions'
     row = i.fresh()
@@ -508,6 +521,8 @@ class About(Pretty):
   def objs1(i,row):
     for obj in i._objs: row[obj.pos] = obj(row)
     return row
+  def scores(i,row):
+    return [row[col.pos] for col in i._objs]
   def normObjs(i,row):
     row = i.objs(row)
     norms  = [ col.norm( row[col.pos] ) for col in i._objs]
@@ -520,9 +535,9 @@ class About(Pretty):
     i.cols = len(i._decs) + len(i._objs)
     return i
   
-class Fonseca(About):
+class Fonseca(Abouts):
   n=3
-  def about(i):
+  def abouts(i):
     def f1(row):
       z = sum([( row[col.pos] - 1/math.sqrt(Fonseca.n))**2
                for col in i._decs])
@@ -537,7 +552,7 @@ class Fonseca(About):
                    objs= [N("<f1", get= f1),
                           N("<f2", get= f2)])
 
-class Viennet4(About):
+class Viennet4(Abouts):
   n=2
   def ok(i,row):
      one,two = row[0],row[1]
@@ -545,7 +560,7 @@ class Viennet4(About):
      g2 = one + 1            
      g3 = two - one + 2
      return g1 >= 0 and g2 >= 0 and g3 >= 0
-  def about(i):
+  def abouts(i):
     def f1(row):
       one,two = row[0], row[1]
       return (one - 2)**2 /2 + (two + 1)**2 /13 + 3
@@ -560,26 +575,36 @@ class Viennet4(About):
                           N("<f2",lo=  -15, up= -5, get=f2),
                           N("<f3",lo= 12, up= 27, get=f3)])     
 
-class DTLZ6(About):
-  "This is called DTLZ6 in the original paper but listed at DTLZ7 in jmetal"
+def DTLZ6_10(): return DTLZ6(10)
+def DTLZ6_20(): return DTLZ6(20)
+def DTLZ6_40(): return DTLZ6(40)
+
+class DTLZ6(Abouts):
+  """
+  This is called DTLZ6 in the original paper but listed at DTLZ7 in jmetal
+  Taken from some Java code at the jMetal site: https://goo.gl/rDLC8f
+  """
   def __init__(i, nobjs = 3):
     i.ndecs, i.nobjs = nobjs-1,nobjs
-    About.__init__(i)
+    Abouts.__init__(i)
   def objs1(i,row):
-    k = i.nobjs
-    g = sum([row[ col.pos ] for col in i._decs])
-    g = 1 + 9*g/k
-    f = [ row[col.pos] for col in i._objs[:-1] ]
-    h = sum([(f[j]/(1+g) *(1+math.sin(3*math.pi*f[j])))
-             for j in xrange(i.nobjs)])
-    h = i.nobjs - h
+    k  = i.nobjs
+    g  = sum([row[ col.pos ] for col in i._decs])
+    g  = 1 + 9*g/k
+    f  = [ row[col.pos] for col in i._decs ]
+    h1 = lambda j: f[j]/(1+g) *(1+math.sin(3*math.pi*f[j]))
+    h  = sum([h1(j) for j in xrange(i.nobjs-1)])
+    h  = i.nobjs - h
     f += [(1+g)*h]
     for pos,x in enumerate(f):
-      row[i.decs + pos + 1] = f[pos]
+      row[i.ndecs + pos] = f[pos]
     return row
-  def about(i):
-    return i.ready(decs = [N(str(n)) for n in range(i.ndecs)],
-                   objs = [N("<f%s" % n) for n in range(i.nobjs)])
+  def defObj(i,j):
+    return lambda row: i.objs(row)[i.ndecs + n ]
+  def abouts(i):
+    return i.ready(decs = [N(str(n)) for n in xrange(i.ndecs)],
+                    objs = [N("<f%s" % n, lo=0,up=25, get=i.defObj(n))
+                           for n in xrange(i.nobjs)])
 
 def wrap(x,col): return col.wrap(x)
 def cap(x,col):  return col.cap(x)
@@ -587,17 +612,17 @@ def cap(x,col):  return col.cap(x)
 def around1(x,col)  : return col.around1(x)
 def any1thing(_,col): return col()
 
-def deFiddles(old,new,about,pop):
+def deFiddles(old,new,abouts,pop):
   a,b,c = any3(pop, it = lambda z: z.rid)
-  for col in about._decs:
+  for col in abouts._decs:
     i     = col.pos
     new[i]= col.smear(a[i], b[i], c[i])
-  new[one.pos] = old[any(about._decs).pos]
+  new[one.pos] = old[any(abouts._decs).pos]
   return new
 
-def maxWalkSatFiddles(old,new,about,_):
+def maxWalkSatFiddles(old,new,abouts,better,_):
   "cut down version, assumes only one goal"
-  col = any(about._decs)
+  col = any(abouts._decs)
   best = old[col.pos]
   better, sofar = (less,10**32) if col.want == less else (more, -1)
   if r() > THE.localSearch: # just do anything
@@ -605,11 +630,9 @@ def maxWalkSatFiddles(old,new,about,_):
   else: # local search
     for x in col.localSearch():
       new[col.pos] = x
-      about.objs(new)
-      tmp = new[ about.objs[0] ]
-      if better(tmp,sofar):
-        best,sofar = x,tmp
-  for col1 in about._decs:
+      if better(tmp,sofar,abouts):
+        best,sofar = x,copy(x)
+  for col1 in abouts._decs:
     new[col1.pos] = best if col1.pos == col.pos else old[col1.pos]
   return new
 
@@ -617,23 +640,23 @@ def maxWalkSatFiddles(old,new,about,_):
 # this mutate is also the creation thing. need to unify.
 # susp[ect that 'create' will be simpler
 
-def mutate(old, about, pop=[],
+def mutate(old, abouts, pop=[], better=cdom,
            fiddles= None,      # e.g. de. maxWalkSat
            fiddle = any1thing, # e.g. around1 or any1thing
            after  = wrap,      # e.g. wrap or cap
            retries= THE.retries):
   assert retries > 0, 'too hard to satisfy model'
-  new = about.decs()
+  new = abouts.decs()
   if fiddle:
-    for col in about._decs:
+    for col in abouts._decs:
       if r() < THE.cf:
         new[col.pos] = fiddle(old[col.pos], col)  # eg around1, any1thing
   if fiddles:
-    new = fiddles(old,new,about,pop) # eg deFiddles maxWalkSatFiddles
+    new = fiddles(old,new,abouts,pop, better) # eg deFiddles maxWalkSatFiddles
   if after:  # e.g. wrap cap
-    for col in about._decs:
+    for col in abouts._decs:
       new[col.pos] = after(new[col.pos], col)
-  return new if about.ok(new) else mutate(old, about, pop,
+  return new if abouts.ok(new) else mutate(old, abouts, pop,
                                           fiddles,fiddle, after,
                                           retries=retries-1)
 
@@ -896,21 +919,21 @@ def below(x,y,tbl):
   "single objective"
   return above(x,y,tbl, better=less)
   
-def bdom(x, y, about):
+def bdom(x, y, abouts):
   "multi objective"
-  x=about.objs(x)
-  y=about.objs(x)
+  x=abouts.objs(x)
+  y=abouts.objs(y)
   betters = 0
-  for obj in about._objs:
-    x1,y1 = x[col.pos], y[col.pos]
+  for obj in abouts._objs:
+    x1,y1 = x[obj.pos], y[obj.pos]
     if obj.better(x1,y1) : betters += 1
-    elif x1 != y1    : return False # must be worse, go quit
+    elif x1 != y1: return False # must be worse, go quit
   return betters > 0
 
-def cdom(x, y, tbl):
+def cdom(x, y, abouts):
   "many objective"
-  x= label(tbl, x)
-  y= label(tbl, y)
+  x= abouts.objs(x)
+  y= abouts.objs(y)
   def w(better):
     return -1 if better == less else 1
   def expLoss(w,x1,y1,n):
@@ -918,14 +941,27 @@ def cdom(x, y, tbl):
   def loss(x, y):
     losses= []
     n = min(len(x),len(y))
-    for col,better in tbl.objs:
-      x1 = x[col.pos] 
-      y1 = y[col.pos] 
-      loss += exploss( w(better),x1,y1,n)
+    for obj in abouts._objs:
+      x1, y1  = x[obj.pos]  , y[obj.pos]
+      x1, y1  = obj.norm(x1), obj.norm(y1)
+      losses += [expLoss( w(obj.want),x1,y1,n)]
     return sum(losses) / n
   l1= loss(x,y)
   l2= loss(y,x)
-  return l1 < l2 if abs(l1 - l2)/l1 >= THE.cdomBigger else False
+  return l1 < l2 
+
+def frontier(pop,abouts,better=bdom):
+  alive = {row.rid:True for row in pop}
+  for row1 in pop:
+    if alive[row1.rid]:
+      #dot("?")
+      for row2 in pop:
+        if alive[row2.rid]:
+          #dot(".")
+          if better(row1,row2,abouts):
+            #dot("!")
+            alive[row2.rid] = False
+  return [row for row in pop if alive[row.rid]]
 
 def sway( population, tbl, better= bdom) :
   def cluster(items, out):
@@ -965,30 +1001,30 @@ def sway( population, tbl, better= bdom) :
   return cluster(population, [])
 
               
-def sa(about=Fonseca()):
-  def score(row) : return about.normObjs(row)
+def sa(abouts=Fonseca()):
+  def score(row) : return abouts.normObjs(row)
   def inc(k)     : events[k] = events.get(k,0) + 1
   def improved() : return events.get('!',0) > 0
-  about.evals = 0
-  s0 = s  = sb = about.decsObjs()
+  abouts.evals = 0
+  s0 = s  = sb = abouts.decsObjs()
   e  = eb = score(s)
   k, frontier, events = 1, [],{}
   lives = THE.lives + 1
-  while about.evals < THE.budget:
+  while abouts.evals < THE.budget:
     dot(" %s\n%5.3f |" % (kv(events),eb))
     lives = THE.lives if improved() else lives - 1
-    if not lives:
+    if lives < 1:
       break
     events = {'!' : 0}
     for _ in xrange(THE.era):
       event= "."
       k += 1
-      sn = mutate(s,about)
+      sn = mutate(s,abouts)
       en = score(sn)
       if en < eb:
         sb,eb    = s,e = sn,en
         inc("!")
-        frontier = [sn]
+        frontier = [sb]
       elif en < e:
         s,e = sn, en
         event = "<"
@@ -1003,29 +1039,35 @@ def sa(about=Fonseca()):
   return o(s0=s0, sb=sb,
            frontier=frontier) # list of things not worse than best
 
-# def mws(about=Fonseca(), better=bdom):
-#   def score(row) : return about.normObjs(row)
-#   def inc(k)     : events[k] = events.get(k,0) + 1
-#   def improved() : return events.get('!',0) > 0
-#   maxTries  =  10
-#   maxChange = 100
-#   lives      =  5
-#   about.evals=  0
-#   for _ in xrange(maxTries):
-#     lives = THE.lives if improved() else lives - 1
-#     if not lives:
-#       break
-#     events = {'!' : 0}
-#     sb = s = about.decsObjs()
-#     for _ in xrange(maxChange):
-#       s = mutate(s,about,fiddles=maxWalkSatFiddles)
-#       if better(s,sb,about):
-#         inc("!")
-#         s1 = copy(s)
-#         sb = s1
-#         frontier = [s1]
-        
-#   return sb    
+def mws(abouts=Fonseca(), better=bdom, sb=None,s0=None):
+  def inc(k)     : events[k] = events.get(k,0) + 1
+  def improved() : return events.get('!',0) > 0
+  maxTries  =  10
+  maxChange = 100
+  lives      =  5
+  events     = {}
+  abouts.evals=  0
+  for _ in xrange(maxTries):
+    eb = abouts.scores(sb) if sb else  []
+    dot(" %s\n%s |" % (kv(events),ros(eb)))
+    lives = THE.lives if improved() else lives - 1
+    if lives < 1:
+      break
+    events = {'!' : 0, "=" : 0}
+    s = abouts.decsObjs()
+    sb = sb or s
+    s0 = s0 or s
+    
+    for _ in xrange(maxChange):
+      s = mutate(s,abouts,fiddles=maxWalkSatFiddles)
+      if better(s,sb,abouts):
+        sb = copy(s)
+        fronter = [sb]
+        inc("!")
+      else:
+        frontier += [copy(s)]
+        inc(".")
+  return o(sb =sb,s0=s0,frontier=frontier)
       
 ### Models ####################
 
@@ -1229,8 +1271,37 @@ def _sa():
   print(out.sb)
   print(len(out.frontier))
 
+@ok
+def _mws():
+  rseed()
+  out = mws(DTLZ6())
   
-DTLZ6(4).decsObjs()
+@ok
+def _DTLZ6():
+  rseed()
+  f= Viennet4()
+  s1,s2,s3 = Num(), Num(), Num()
+  for _ in xrange(100000):
+    row = f.decsObjs()
+    s1.add(row[2]), s2.add(row[3]), s3.add(row[4])
+  print(s1.lo,s1.up)
+  print(s2.lo,s2.up)
+  
+  print(s3.lo,s3.up)
+
+@ok
+def _bdom(abouts=[Fonseca,Viennet4,DTLZ6,DTLZ6_10,DTLZ6_20,DTLZ6_40][2]):
+  rseed()
+  f= abouts()
+  rows = [f.decsObjs() for _ in xrange(1024)]
+  c = frontier(rows,f,cdom)
+  for row in c[:10]: print("c",row)
+  b = frontier(rows,f,bdom)
+  for row in b[:10]: print("b",row)
+  print("b",len(b),"c",len(c))
+
+
+  
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
   ok(f())
