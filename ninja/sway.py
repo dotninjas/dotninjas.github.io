@@ -83,6 +83,7 @@ that are orders of magnitude different.
   elp("evaluation budget",                       budget    = 10000),
   elp("mutation retries limit",                  retries   = 100),
   elp("probability of mutating a field",         cf        = 0.3),
+  elp("size of smear",                           f         = 0.7),
   elp("splay size for the 'around1' mutatio",    splay     = 0.5),
 
   
@@ -160,14 +161,15 @@ def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
 def dot(x='.')   : sys.stdout.write(str(x)); sys.stdout.flush()
 
-def any3(lst,a=None,b=None,c=None,it = same):
+def any3(lst,a=None,b=None,c=None,it = same,retries=10):
+  assert retries > 0
   a = a or any(lst)
   b = b or any(lst)
   if it(a) == it(b):
-    return any3(lst,a=a,b=None,it=it)
+    return any3(lst,a=a,b=None,it=it,retries=retries - 1)
   c = any(lst)
   if it(a) == it(c) or it(b) == it(c):
-    return any3(lst,a=a,b=b,it=it)
+    return any3(lst,a=a,b=b,it=it,retries=retries - 1)
   return a,b,c
   
 def rows(file,prep=same):
@@ -332,8 +334,9 @@ class Summary(Pretty):
 class Thing(Summary):
   "some thing that can handle  Nums or Syms"
   UNKNOWN = "?"
-  def __init__(i,pos,txt):
-    i.txt, i.pos, i.my, i.samples = txt, pos, None, Sample()
+  def __init__(i,pos,txt=None):
+    txt = txt or pos
+    i.txt, i.pos, i.my, i.samples = str(txt), pos, None, Sample()
   def sample(i):
     return i.samples.sample()
   def add(i,x):
@@ -498,6 +501,13 @@ class About1symbol(Pretty):
 
 N,S = About1number,About1symbol
 
+def summaries(pop,abouts):
+  summary = [Thing(pos) for pos,_ in enumerate(abouts._objs)]
+  for one in pop:
+    for col,thing in zip(abouts._objs,summary):
+      thing.add(one[col.pos])
+  return map(lambda x: x.samples.stats().median, summary)
+  
 class Abouts(Pretty):
   def __init__(i):
     i.evals = 0
@@ -618,12 +628,13 @@ def cap(x,col):  return col.cap(x)
 def around1(x,col)  : return col.around1(x)
 def any1thing(_,col): return col()
 
-def deFiddles(old,new,abouts,pop):
+def deFiddles(old,new,abouts,pop,_):
   a,b,c = any3(pop, it = lambda z: z.rid)
   for col in abouts._decs:
     i     = col.pos
     new[i]= col.smear(a[i], b[i], c[i])
-  new[one.pos] = old[any(abouts._decs).pos]
+  col = any(abouts._decs)
+  new[col.pos] = old[col.pos]
   return new
 
 def maxWalkSatFiddles(_old,new,abouts,_,better):
@@ -959,7 +970,7 @@ def cdom(x, y, abouts):
   l2= loss(y,x)
   return l1 < l2 
 
-def frontier(pop,abouts,better=bdom):
+def reference(pop,abouts,better=bdom):
   alive = {row.rid:True for row in pop}
   for row1 in pop:
     if alive[row1.rid]:
@@ -1079,42 +1090,35 @@ def mws(abouts=Fonseca(), better=bdom, sb=None,s0=None):
         status = "."
       inc(status)
       dot(status)
-  return o(sb =sb,s0=s0,frontier=frontier)
+  return o(sb=sb,s0=s0,frontier=frontier)
 
 def de(abouts=Fonseca(), better=bdom, sb=None,s0=None):
   def inc(k)     : events[k] = events.get(k,0) + 1
   def improved() : return events.get('!',0) > 0
-  frontier = [abouts.decs()] * 10*len(abouts._decs)
-  while True:
-    eb = abouts.scores(frontier[0]) if sb else  []
+  def best(lst)  : return copied(reference(lst, abouts,cdom))
+  frontier = [abouts.decs() for _ in xrange(10*len(abouts._decs))]
+  events = {}
+  s0 = best(frontier)
+  lives = THE.lives + 1
+  while abouts.evals < THE.budget:
+    eb = summaries(frontier,abouts)
     dot(" %s\n%s |" % (kv(events),ros(eb)))
     lives = THE.lives if improved() else lives - 1
     if lives < 1:
       break
-    events = {'!' : 0, "=" : 0}
+    events = {'!' : 0}
     for (i,parent) in enumerate(frontier):
-    kid = mudate(parent,abouts,frontier,fiddles=maxWalkSatFiddles)
-    if better(kid,parent,abouts):
-      frontier[i]= kid
-      
-  for _ in xrange(maxTries):
-    s = abouts.decsObjs()
-    sb = sb or s
-    s0 = s0 or s
-    for _ in xrange(maxChange):
-      status="."
-      s = mutate(s,abouts,better=bdom,fiddles=maxWalkSatFiddles)
-      if better(s,sb,abouts):
-        sb = copied(s)
-        fronter = [sb]
-        status = "!"
-      else:
-        frontier += [copied(s)]
-        status = "."
-      inc(status)
-      dot(status)
-  return o(sb =sb,s0=s0,frontier=frontier)
-      
+      event="."
+      kid = mutate(parent,abouts,frontier,
+                   better=better,fiddles=deFiddles)
+      if better(kid,parent,abouts):
+        frontier[i]= kid
+        event="!"
+      dot(event)
+      inc(event)
+  return o(sb=best(frontier), s0=s0, frontier=frontier)
+
+
 ### Models ####################
 
                      
@@ -1137,8 +1141,8 @@ def _ok2():
 @ok
 def _any3():
   lst=list('abcdefghijklmnopqrstuvwxyz')
-  for _ in xrange(30):
-    print(any3(lst))
+  for x in sorted([''.join(any3(lst)) for _ in xrange(30)]):
+    print(x)
   
   
 @ok
@@ -1330,6 +1334,20 @@ def _mws(abouts=models()):
   print(ros(out.s0))
   print(ros(out.sb))
   print(len(out.frontier))
+
+@ok
+def _de(abouts=models()):
+  rseed()
+  print("#",abouts,len(abouts()._objs))
+  out1 = mws(abouts())
+  print("")
+  print(ros(out1.s0))
+  print(ros(out1.sb))
+  print(len(out1.frontier))
+  out2 = de(abouts())
+  print("")
+  print(len(out2.frontier))
+
   
 @ok
 def _DTLZ6():
@@ -1349,9 +1367,9 @@ def _bdom(abouts=models(2)):
   rseed()
   f= abouts()
   rows = [f.decsObjs() for _ in xrange(1024)]
-  c = frontier(rows,f,cdom)
+  c = reference(rows,f,cdom)
   for row in c[:10]: print("c",row)
-  b = frontier(rows,f,bdom)
+  b = reference(rows,f,bdom)
   for row in b[:10]: print("b",row)
   print("b",len(b),"c",len(c))
 
