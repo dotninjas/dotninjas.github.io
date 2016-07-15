@@ -75,6 +75,7 @@ that are orders of magnitude different.
   # -----------------------------------------------------------------
   # optimization (general)
   
+  elp("model number",                            model= [0,1,2,3,4,5,6]),
   elp("continuous domination bigger",            cdomBigger= 0.005),
   elp("evalautions before pausing to reflect",   era       = 100),
   elp("lives before quiting" ,                   lives     = 5),
@@ -418,8 +419,8 @@ class Sym(Summary):
 class Row(Pretty):
   rid = 0
   def __init__(i,lst):
-    i.contents=lst
     i.rid = Row.rid = Row.rid+1
+    i.contents=lst
     i.labelled=False
   def __repr__(i)       : return '#%s,%s' % (i.rid,i.contents)
   def __getitem__(i,k)  : return i.contents[k]
@@ -503,6 +504,11 @@ class Abouts(Pretty):
     i.abouts()
   def ok(i,row): return True
   def fresh(i) : return Row(["?"] * i.cols)
+  def copyDecs(i,old):
+    tmp = i.fresh()
+    for dec in i._decs:
+      tmp[dec.pos] = old[dec.pos]
+    return tmp
   def decsObjs(i):
     row0 = i.decs()
     return i.objs(row0)
@@ -620,33 +626,31 @@ def deFiddles(old,new,abouts,pop):
   new[one.pos] = old[any(abouts._decs).pos]
   return new
 
-def maxWalkSatFiddles(old,new,abouts,better,_):
+def maxWalkSatFiddles(_old,new,abouts,_,better):
   "cut down version, assumes only one goal"
-  col = any(abouts._decs)
-  best = old[col.pos]
-  better, sofar = (less,10**32) if col.want == less else (more, -1)
+  col  = any(abouts._decs)
   if r() > THE.localSearch: # just do anything
-    best = any1thing(best,col)
-  else: # local search
+    new[col.pos] = any1thing(_,col)
+    return new
+  else:
+    best = copied(new)
     for x in col.localSearch():
       new[col.pos] = x
-      if better(tmp,sofar,abouts):
-        best,sofar = x,copy(x)
-  for col1 in abouts._decs:
-    new[col1.pos] = best if col1.pos == col.pos else old[col1.pos]
-  return new
+      if  better(new,best,abouts): # multi-obj domination
+        best  = copied(new)
+    return best
 
 # de's eval counts increased by THE.localSteps
 # this mutate is also the creation thing. need to unify.
 # susp[ect that 'create' will be simpler
 
-def mutate(old, abouts, pop=[], better=cdom,
+def mutate(old, abouts, pop=[], better= lambda x,y,z: cdom(x,y,z),
            fiddles= None,      # e.g. de. maxWalkSat
            fiddle = any1thing, # e.g. around1 or any1thing
            after  = wrap,      # e.g. wrap or cap
            retries= THE.retries):
   assert retries > 0, 'too hard to satisfy model'
-  new = abouts.decs()
+  new = abouts.copyDecs(old)
   if fiddle:
     for col in abouts._decs:
       if r() < THE.cf:
@@ -656,7 +660,7 @@ def mutate(old, abouts, pop=[], better=cdom,
   if after:  # e.g. wrap cap
     for col in abouts._decs:
       new[col.pos] = after(new[col.pos], col)
-  return new if abouts.ok(new) else mutate(old, abouts, pop,
+  return new if abouts.ok(new) else mutate(old, abouts, pop,better,
                                           fiddles,fiddle, after,
                                           retries=retries-1)
 
@@ -909,6 +913,11 @@ def div(lst,label=0, x= same, y= same, yKlass= Num):
   enough = THE.divEnough or len(lst)**0.5
   return divide( sorted(lst[:], key=x), out=[] ,lvl=0) # copied, sorted
 
+
+
+
+
+
 ### Optimizers #################################################################
 def above(x,y,tbl,better=more):
   "single objective"
@@ -1042,11 +1051,12 @@ def sa(abouts=Fonseca()):
 def mws(abouts=Fonseca(), better=bdom, sb=None,s0=None):
   def inc(k)     : events[k] = events.get(k,0) + 1
   def improved() : return events.get('!',0) > 0
-  maxTries  =  10
+  maxTries  =  20
   maxChange = 100
   lives      =  5
   events     = {}
   abouts.evals=  0
+  frontier    = []
   for _ in xrange(maxTries):
     eb = abouts.scores(sb) if sb else  []
     dot(" %s\n%s |" % (kv(events),ros(eb)))
@@ -1057,16 +1067,52 @@ def mws(abouts=Fonseca(), better=bdom, sb=None,s0=None):
     s = abouts.decsObjs()
     sb = sb or s
     s0 = s0 or s
-    
     for _ in xrange(maxChange):
-      s = mutate(s,abouts,fiddles=maxWalkSatFiddles)
+      status="."
+      s = mutate(s,abouts,better=bdom,fiddles=maxWalkSatFiddles)
       if better(s,sb,abouts):
-        sb = copy(s)
+        sb = copied(s)
         fronter = [sb]
-        inc("!")
+        status = "!"
       else:
-        frontier += [copy(s)]
-        inc(".")
+        frontier += [copied(s)]
+        status = "."
+      inc(status)
+      dot(status)
+  return o(sb =sb,s0=s0,frontier=frontier)
+
+def de(abouts=Fonseca(), better=bdom, sb=None,s0=None):
+  def inc(k)     : events[k] = events.get(k,0) + 1
+  def improved() : return events.get('!',0) > 0
+  frontier = [abouts.decs()] * 10*len(abouts._decs)
+  while True:
+    eb = abouts.scores(frontier[0]) if sb else  []
+    dot(" %s\n%s |" % (kv(events),ros(eb)))
+    lives = THE.lives if improved() else lives - 1
+    if lives < 1:
+      break
+    events = {'!' : 0, "=" : 0}
+    for (i,parent) in enumerate(frontier):
+    kid = mudate(parent,abouts,frontier,fiddles=maxWalkSatFiddles)
+    if better(kid,parent,abouts):
+      frontier[i]= kid
+      
+  for _ in xrange(maxTries):
+    s = abouts.decsObjs()
+    sb = sb or s
+    s0 = s0 or s
+    for _ in xrange(maxChange):
+      status="."
+      s = mutate(s,abouts,better=bdom,fiddles=maxWalkSatFiddles)
+      if better(s,sb,abouts):
+        sb = copied(s)
+        fronter = [sb]
+        status = "!"
+      else:
+        frontier += [copied(s)]
+        status = "."
+      inc(status)
+      dot(status)
   return o(sb =sb,s0=s0,frontier=frontier)
       
 ### Models ####################
@@ -1260,21 +1306,30 @@ def _Viennet4():
 @ok
 def _bdom():
   print(1)
-  
+
+
+def models(n=THE.model):
+  return [Fonseca,Viennet4,DTLZ6,DTLZ6_10,DTLZ6_20,DTLZ6_40][n]
+
 @ok
-def _sa():
+def _sa(abouts=Fonseca):
   rseed()
-  out = sa(Viennet4
-              ())
+  out = sa(abouts())
   print("")
-  print(out.s0)
-  print(out.sb)
+  print(ros(out.s0))
+  print(ros(out.sb))
   print(len(out.frontier))
 
 @ok
-def _mws():
+def _mws(abouts=models()):
   rseed()
-  out = mws(DTLZ6())
+  print("#",abouts,len(abouts()._objs))
+  _sa(abouts)
+  out = mws(abouts())
+  print("")
+  print(ros(out.s0))
+  print(ros(out.sb))
+  print(len(out.frontier))
   
 @ok
 def _DTLZ6():
@@ -1290,7 +1345,7 @@ def _DTLZ6():
   print(s3.lo,s3.up)
 
 @ok
-def _bdom(abouts=[Fonseca,Viennet4,DTLZ6,DTLZ6_10,DTLZ6_20,DTLZ6_40][2]):
+def _bdom(abouts=models(2)):
   rseed()
   f= abouts()
   rows = [f.decsObjs() for _ in xrange(1024)]
@@ -1299,7 +1354,6 @@ def _bdom(abouts=[Fonseca,Viennet4,DTLZ6,DTLZ6_10,DTLZ6_20,DTLZ6_40][2]):
   b = frontier(rows,f,bdom)
   for row in b[:10]: print("b",row)
   print("b",len(b),"c",len(c))
-
 
   
 if THE.run:
