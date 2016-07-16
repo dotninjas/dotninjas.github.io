@@ -1137,7 +1137,7 @@ def de(abouts=Fonseca(), better=bdom, sb=None,s0=None):
            frontier=frontier)
 
 def igds(models,opts):
-  subs=256
+  subs=400
   def sampleFrontier0(abouts):
     tmp = abouts()
     return [tmp.decsObjs() for _ in xrange(THE.pop0)]
