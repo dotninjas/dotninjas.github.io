@@ -85,6 +85,9 @@ that are orders of magnitude different.
   elp("probability of mutating a field",         cf        = 0.3),
   elp("size of smear",                           f         = 0.7),
   elp("splay size for the 'around1' mutatio",    splay     = 0.5),
+  elp("trial size",                              trials    = 20),
+  elp("pop0 size ",                              pop0      = 100),
+  elp("verbose optimization",                    verbose=False),
 
   
   # -----------------------------------------------------------------
@@ -159,7 +162,8 @@ def rseed(s=None): random.seed(s or THE.seed)
 def r()          : return random.random()
 def any(lst)     : return random.choice(lst)
 def shuffle(lst) : random.shuffle(lst); return lst
-def dot(x='.')   : sys.stdout.write(str(x)); sys.stdout.flush()
+def dot(x='.',show=THE.verbose)   :
+  if show: sys.stdout.write(str(x)); sys.stdout.flush()
 
 def any3(lst,a=None,b=None,c=None,it = same,retries=10):
   assert retries > 0
@@ -244,13 +248,14 @@ def ok(f):
 
 
 ### LIB.tiles ##################################################
-def xtiles(lsts):
-  lsts = map(sorted,lsts)
-  lo   = sorted(map(lambda z:z[0], lsts))[0]
-  up   = sorted(map(lambda z:z[-1], lsts))[-1]
+def xtiles(pairs):
+  pairs = [(name,sorted(lst)) for name,lst in pairs]
+  lo   = sorted(map(lambda z:z[1][ 0], pairs))[0]
+  up   = sorted(map(lambda z:z[1][-1], pairs))[-1]
   mid  = 2 if  THE.ntiles==5 else 1
-  return sorted([xtile(lst,lo=lo,up=up) for lst in lsts],
-                key = lambda z:z[1][mid])
+  pairs= [ (xtile(pair[1],lo=lo,up=up),pair[0]) for pair in pairs]
+  return sorted(pairs,
+                key = lambda z:z[0][1][mid])
   
   
 def xtile(lst,lo=None, up=None):
@@ -429,6 +434,9 @@ class Row(Pretty):
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
   def __len__(i)        : return len(i.contents)
+  def __hash__(i)       : return hash(i.contents)
+  def __eq__(i,j)       : return i.rid == j.rid
+  def __ne__(i,j)       : return not i.__eq__(j)
 
 ### About ####################
 # ways to generate decisions and objectoves
@@ -550,6 +558,13 @@ class Abouts(Pretty):
       about1.pos = pos
     i.cols = len(i._decs) + len(i._objs)
     return i
+  def table(i, rows):
+    names = [col.txt for col in i._decs + i._objs ]
+    tbl = Table()
+    tbl(names)
+    for row in rows:
+      tbl(row.contents)
+    return tbl
   
 class Fonseca(Abouts):
   n=3
@@ -720,16 +735,17 @@ class Table(Pretty):
           if cell[-1] == Table.SYM:
             col.my = Sym()
     return row
-  def furthest(i,r1,cols=None,f=None, better=more,init= -1):
+  def furthest(i,r1,cols=None,f=None, better=more,init= -1,ignore=set()):
     out,d = r1,init
     for r2 in i._rows:
       if r1.rid != r2.rid:
-        tmp = i.distance(r1,r2,cols,f)
-        if better(tmp, d):
-          out,d = r2,tmp
+        if not r2 in ignore:
+          tmp = i.distance(r1,r2,cols,f)
+          if better(tmp, d):
+            out,d = r2,tmp
     return out
-  def closest(i,r1,cols=None,f=None):
-    return i.furthest(r1,cols=cols,f=f,better=less, init=10**32)
+  def closest(i,r1,cols=None,f=None,ignore=set()):
+    return i.furthest(r1,cols=cols,f=f,better=less, init=10**32,ignore=ignore)
   def distance(i,r1,r2,cols=None,f=None):
     cols = cols or Table.DIST(i)
     f    = f    or THE.edist
@@ -1116,15 +1132,51 @@ def de(abouts=Fonseca(), better=bdom, sb=None,s0=None):
         event="!"
       dot(event)
       inc(event)
-  return o(sb=best(frontier), s0=s0, frontier=frontier)
+  return o(sb=best(frontier),
+           s0=s0,
+           frontier=frontier)
 
-
-### Models ####################
-
-                     
-   
-
-            
+def igds(models,opts):
+  subs=256
+  def sampleFrontier0(abouts):
+    tmp = abouts()
+    return [tmp.decsObjs() for _ in xrange(THE.pop0)]
+  def finalFrontier(abouts,opt):
+    tmp = abouts()
+    results = opt(tmp)
+    return reference(results.frontier, tmp)
+  for abouts in models:
+    all,some = Sample(max=subs), defaultdict(lambda : [])
+    some['baseline'] = sampleFrontier0(abouts)
+    for opt in opts:
+      rseed()
+      print("\n",opt,": ",sep="",end="")
+      for t in xrange(THE.trials):
+        dot(t,True)
+        tmp        = finalFrontier(abouts,opt)
+        some[opt] += tmp
+        for one in tmp: all.add(one)
+    dot(">1",True)
+    abouts1=abouts()
+    all = all._some
+    print(len(all))
+    all = reference(all,abouts1)
+    things= {}
+    dot(">2",True)
+    for opt in some:
+      things[opt] = Thing(opt)
+      tbl  = abouts1.table(all)
+      mine = Sample([tbl(row) for row in some[opt]],max=subs)._some
+      dot(">3[%s] " % len(mine),True)
+      for row in mine:
+        ref = tbl.closest(row,cols=tbl.decs,ignore=mine)
+        igd = tbl.distance(row,ref, cols=tbl.decs)
+        things[opt].add(igd)
+    yield abouts, xtiles([(opt, things[opt].samples._some)
+                           for opt in things])
+    
+      
+                                                    
 ### Unittests #################################################################        
 
   
@@ -1373,9 +1425,21 @@ def _bdom(abouts=models(2)):
   for row in b[:10]: print("b",row)
   print("b",len(b),"c",len(c))
 
-  
+@ok
+def _igds():
+  models= [Fonseca,Viennet4,DTLZ6,DTLZ6_10]
+  opts  = [ sa, mws, de]
+  for what, reports in igds(models,opts):
+    print("\n",what)
+    for report in reports:
+      print(report)
+      
 if THE.run:
   f= eval("lambda : %s()" %THE.run)
   ok(f())
   sys.exit()
   
+
+# check ignore works
+# add in the stats
+# why is distnace so slow.
