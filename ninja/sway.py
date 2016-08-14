@@ -434,7 +434,7 @@ class Row(Pretty):
   def __getitem__(i,k)  : return i.contents[k]
   def __setitem__(i,k,v): i.contents[k] = v
   def __len__(i)        : return len(i.contents)
-  def __hash__(i)       : return hash(i.contents)
+  def __hash__(i)       : return i.rid #hash(set(i.contents))
   def __eq__(i,j)       : return i.rid == j.rid
   def __ne__(i,j)       : return not i.__eq__(j)
 
@@ -771,7 +771,7 @@ class Table(Pretty):
 
 ### Table filters #################################################################
 
-        
+
 def csv2table(file):
   tbl= Table()
   for row in rows(file):
@@ -814,7 +814,7 @@ def table2arff(tbl):
   print("\n@data")
   for row in tbl._rows:
     print(', '.join(map(str,row)))
-      
+
 
 def like(row,all,klasses):
   guess, best, nh, k = None, -1*10**32, len(klasses), THE.nbk
@@ -1220,9 +1220,9 @@ def _sample1():
   for _ in xrange(n): s2.add(r()**2)
   for _ in xrange(n): s3.add(r()**0.5* 1.5)
   for _ in xrange(n): s4.add(3*r()**0.33)
-  lsts = [s.stats().some for s in [s1,s2,s3,s4]]
-  for report in xtiles(lsts):
-    print(report)
+  lsts = [(str(i),s.stats().some) for i,s in enumerate([s1,s2,s3,s4])]
+  for (a,b),c in xtiles(lsts):
+    print(c,a,b)
 
 
 @ok
@@ -1256,9 +1256,9 @@ def _arff(file= "data/weather.arff",show=True):
   print("===")
   for col in tbl.klass:
     print(col)
-  if show:
+  if show: 
     table2arff(tbl)
-          
+
 @ok
 def _table1():
   _table("data/diabetes.csv",show=False)
@@ -1321,6 +1321,62 @@ def _sdiv():
                     x=lambda z:z[0],
                     y=lambda z:z[1]):
     print(range)
+
+@ok
+def _sdiv1():
+  rseed()
+
+  lst = [63
+         ,53
+         ,52
+         ,48
+         ,45
+         ,44
+         ,41
+         ,36
+         ,34
+         ,34
+         ,34
+         ,33
+         ,32
+         ,31
+         ,31
+         ,31
+         ,29
+         ,28
+         ,28
+         ,28]
+  for range in  div(lst,
+                    x=lambda z:z,
+                    y=lambda z:z):
+    print(range)
+
+@ok
+def _sdiv2():
+    lst=[83
+         ,67
+         ,82
+         ,65
+         ,69
+         ,76
+         ,63
+         ,49
+         ,50
+         ,46
+         ,46
+         ,49
+         ,46
+         ,46
+         ,44
+         ,39
+         ,42
+         ,46
+         ,42
+         ,40]
+    for range in  div(lst,
+                    x=lambda z:z,
+                    y=lambda z:z):
+      print(range)
 
 @ok
 def _ediv():
