@@ -14,48 +14,56 @@ pass them on to someone else.
 
 ## Install and Test
 
-In a clean directory on a pathname with no spaces, type:
 
-```
-wget https://github.com/dotninjas/dotninjas.github.io/blob/master/ninja.zip
-unzip ninja.zip
-cd ninja
-sh ninja    # to start this tool
-eg2         # wait a few minutes while some text dribbles by....
-<control-d> # to quit this tool
-```
+Note that the following instructions usually work fine from a Bash
+command line on a Linux or Mac box. If using Windows, two pieces of advice:
 
-If that works, you should see (in a few minutes), a report looking like this
-(note, your numbers may differ due to your local random number generator,
-which is a lesson in of itself... don't trust results from anywhere else).
+- Just don't do it. Get a c9.io account instead. Much easier.
+- But if you really must, first install
+       - GitBash https://git-for-windows.github.io/
+       - Chocolatey https://chocolatey.org/
 
-     pd
-     rank ,         name ,    med   ,  iqr
-     ----------------------------------------------------
-        1 ,           nb ,      45  ,    18 (   ------  *  -|---           ),27, 41, 45, 52, 64
-        1 ,          j48 ,      47  ,    25 ( -------    *  |---           ),22, 38, 47, 56, 64
-        2 ,       rbfnet ,      56  ,    10 (         ----  * -----        ),42, 50, 56, 59, 73
-        2 ,         bnet ,      58  ,    17 (       ------  |*   ------    ),37, 50, 58, 67, 81
+Once you've decided your platform, go to a clean new directory, on a pathname
+with no spaces,  type...
 
-     pf
-     rank ,         name ,    med   ,  iqr
-     ----------------------------------------------------
-        1 ,           nb ,       8  ,     6 (    --   * ----|-             ), 4,  6,  8, 10, 15
-        2 ,       rbfnet ,       9  ,     7 (    ----- *    |-----         ), 4,  8,  9, 14, 19
-        2 ,          j48 ,      10  ,    10 (   -----   *   |  ------      ), 3,  7, 10, 16, 21
-        2 ,         bnet ,      13  ,     8 (        ---   *|   --         ), 7, 10, 13, 17, 19
-      __________________________________________________________
- 
-By the way, for an explanation of "pd" and "pf" go to [top right, page1](http://menzies.us/pdf/07precision.pdf).
 
-## USAGE
+     wget https://github.com/dotninjas/dotninjas.github.io/archive/master.zip
+     unzip master.zip 
+     mv dotninjas.github.io-master/* .
+     cd ninja/
+     sh ninja
+     eg0
 
-```bash
-Here=$(pwd) bash --init-file ninja.rc -i
-```
+If that works, you should see, a report looking like the following.
+Which is to say that decision tree was generated from some data.
 
-TIP: place the above line into a file `ninja` and call with:
+       @attribute outlook {sunny, overcast, rainy}
+       @attribute temperature real
+       @attribute humidity real
+       @attribute windy {TRUE, FALSE}
+       @attribute play {yes, no}
 
-```bash
-$ sh ninja
-```
+       overcast  64  65  TRUE   yes
+       overcast  72  90  TRUE   yes
+       overcast  81  75  FALSE  yes
+       overcast  83  86  FALSE  yes
+       rainy     65  70  TRUE   no
+       rainy     68  80  FALSE  yes
+       rainy     70  96  FALSE  yes
+       rainy     71  91  TRUE   no
+       rainy     75  80  FALSE  yes
+       sunny     69  70  FALSE  yes
+       sunny     72  95  FALSE  no
+       sunny     75  70  TRUE   yes
+       sunny     80  90  TRUE   no
+       sunny     85  85  FALSE  no
+
+       outlook = sunny
+       |   humidity <= 75: yes (2.0)
+       |   humidity > 75: no (3.0)
+       outlook = overcast: yes (4.0)
+       outlook = rainy
+       |   windy = TRUE: no (2.0)
+       |   windy = FALSE: yes (3.0)
+
+

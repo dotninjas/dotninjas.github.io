@@ -64,47 +64,46 @@ ________
 # Once you've decided your platform, go to a clean new directory, on a pathname
 # with no spaces,  type...
 #
-# 1. Download https://github.com/dotninjas/dotninjas.github.io/archive/master.zip
-#    e.g. using wget https://github.com/dotninjas/dotninjas.github.io/archive/master.zip
-# 2. unzip master.zip
-# 3. mv dotninjas.github.io-master/* .
-# 4. cd ninja
-# 5. sh ninja
-# 6. eg1
+#
+#      wget https://github.com/dotninjas/dotninjas.github.io/archive/master.zip
+#      unzip master.zip 
+#      mv dotninjas.github.io-master/* .
+#      cd ninja/
+#      sh ninja
+#      eg0
 
-
-# If that works, you should see (in a few minutes), a report looking like this
-# (note, your numbers may differ due to your local random number generator,
-# which is a lesson in of itself... don't trust results from anywhere else).
+# If that works, you should see, a report looking like the following.
+# Which is to say that decision tree was generated from some data.
 #
-#      pd
-#      rank ,         name ,    med   ,  iqr
-#      ----------------------------------------------------
-#         1 ,           nb ,      45  ,    18 (   ------  *  -|---           ),27, 41, 45, 52, 64
-#         1 ,          j48 ,      47  ,    25 ( -------    *  |---           ),22, 38, 47, 56, 64
-#         2 ,       rbfnet ,      56  ,    10 (         ----  * -----        ),42, 50, 56, 59, 73
-#         2 ,         bnet ,      58  ,    17 (       ------  |*   ------    ),37, 50, 58, 67, 81
+#        @attribute outlook {sunny, overcast, rainy}
+#        @attribute temperature real
+#        @attribute humidity real
+#        @attribute windy {TRUE, FALSE}
+#        @attribute play {yes, no}
 #
-#      pf
-#      rank ,         name ,    med   ,  iqr
-#      ----------------------------------------------------
-#         1 ,           nb ,       8  ,     6 (    --   * ----|-             ), 4,  6,  8, 10, 15
-#         2 ,       rbfnet ,       9  ,     7 (    ----- *    |-----         ), 4,  8,  9, 14, 19
-#         2 ,          j48 ,      10  ,    10 (   -----   *   |  ------      ), 3,  7, 10, 16, 21
-#         2 ,         bnet ,      13  ,     8 (        ---   *|   --         ), 7, 10, 13, 17, 19
+#        overcast  64  65  TRUE   yes
+#        overcast  72  90  TRUE   yes
+#        overcast  81  75  FALSE  yes
+#        overcast  83  86  FALSE  yes
+#        rainy     65  70  TRUE   no
+#        rainy     68  80  FALSE  yes
+#        rainy     70  96  FALSE  yes
+#        rainy     71  91  TRUE   no
+#        rainy     75  80  FALSE  yes
+#        sunny     69  70  FALSE  yes
+#        sunny     72  95  FALSE  no
+#        sunny     75  70  TRUE   yes
+#        sunny     80  90  TRUE   no
+#        sunny     85  85  FALSE  no
 #
-# By the way, for an explanation of "pd" and "pf" go to http://menzies.us/07precision.pdf.
+#        outlook = sunny
+#        |   humidity <= 75: yes (2.0)
+#        |   humidity > 75: no (3.0)
+#        outlook = overcast: yes (4.0)
+#        outlook = rainy
+#        |   windy = TRUE: no (2.0)
+#        |   windy = FALSE: yes (3.0)
 #
-# ## USAGE:
-
-#      Here=$(pwd) bash --init-file ninja.rc -i
-
-# TIP: place the above line into a file "ninja" and call with
-#
-#     sh ninja
-#
-#
-
 # __________________________________________________________
 #
 # ## Inside Ninja.rc
@@ -172,14 +171,18 @@ ________
 Seed=1
 
 eg0() {
-    j4810 data/weather.arff
+    grep attribute data/weather.arff
+    echo
+    cat data/weather.arff | gawk -F, 'NF==5' | sort  | column -s, -t
+    echo
+    j4810 data/weather.arff | para 3
 }
 
+para() {
+    gawk 'BEGIN {FS="\n"; RS=""} NR=='$1
+}
 #<
 # `eg0` produces the same output as the GUI Weka, but dumps it to the screen.
-# The line `weka.classifiers.trees.J48 -C 0.25 -M 2` is important--
-# but we'll get back to that later.
-# To understand that output of `eg0`, we need some thoery.
 #
 # ### Command-line Weka
 #
@@ -393,7 +396,7 @@ eg0() {
 #
 # ### From Output to Meaning
 #
-# `eg1` shows the results of calling a decision tree learner with the same training and testing data. This
+# `eg2` shows the results of calling a decision tree learner with the same training and testing data. This
 # call prints out details on each test instance:
 #>
 eg1() {
@@ -517,8 +520,8 @@ eg6() {
 #
 # What we need to do is pull some columns of interest from the above. Columns 2,10,11 are the learner,
 # recall and false alarms rates, respectively. The following code finds all the lines that predict
-# for playing golf, then writes the learner and pd values to `eg5.pd`
-# the learner and pf values to `eg5.pf`.
+# for playing golf, then writes the learner and pd values to `eg6.pd`
+# the learner and pf values to `eg6.pf`.
 #
 #> 
 eg7() {  
@@ -568,7 +571,7 @@ eg8() {
 #
 # Now we have two files containing just the learner and pd (or pf) values. For example, here are some lines from those files:
 #
-#      $Tmp/eg5a.pd         $Tmp/eg5a.pf
+#      $Tmp/eg6.pd         $Tmp/eg6.pf
 #      -----------         -----------
 #      ...                 ...
 #      j48 100             j48 0
@@ -601,32 +604,22 @@ report() {
 #<
 # In any case, when this runs, we see that that `j48`'s `pd` distribution contains higher values and while its `pf`
 # distributions contains more lower values.
+
 #     pd
 #     
 #     rank ,         name ,    med   ,  iqr
 #     ----------------------------------------------------
-#        1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
-#        1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
-#     pf
-#     
-#     rank ,         name ,    med   ,  iqr
-#     ----------------------------------------------------
-#        1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
-#        1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
+#        1 ,         jrip ,     100  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
+#        1 ,          j48 ,     100  ,    50 (-------------- |             *), 0.00, 50.00, 100.00, 100.00, 100.00
 #
-# Warning: The above results look exactly the same for pd and pf so this is where you should be going "hmmm... better
-# check that". It turns out that this result is correct-- but we check that by peeking at the raw output files:
-#
-#       echo `cat $Tmp/eg5a.pd | grep j48 | sort -n -k 2 | cut -d \   -f 2`
-#       0 0 0 0 0 50 50 50 100 100 100 100 100 100 100 100 100 100 100 100 100 100
-#
-#       echo `cat $Tmp/eg5a.pd | grep jrip | sort -n -k 2 | cut -d \   -f 2`
-#       0 0 0 0 0 0 0 50 50 100 100 100 100 100 100 100 100 100 100 100 100 100 100
-#
+#    pf
+#    rank ,         name ,    med   ,  iqr
+#    ----------------------------------------------------
+#       1 ,          j48 ,       0  ,    50 (*             -|------------- ), 0.00,  0.00,  0.00, 50.00, 100.00
+#       1 ,         jrip ,      50  ,   100 (               |             *), 0.00,  0.00, 100.00, 100.00, 100.00
 #
 # Now lets do all that again, this time for some SE data and for more leaners:
 #
-# XXX
 #>
 
 eg10() {
