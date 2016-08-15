@@ -384,7 +384,15 @@ eg0() {
 # `eg1` shows the results of calling a decision tree learner with the same training and testing data. This
 # call prints out details on each test instance:
 #>
-eg1() {
+eg0() {
+    cat data/weather.arff | gawk -F, 'NF==5' | sort  | column -s, -t
+}
+
+eg1a() {
+    j4810 data/weather.arff | cat -n
+}
+
+eg1b() {
     echo 
     j48 data/weather.arff data/weather.arff
 }

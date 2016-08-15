@@ -415,7 +415,15 @@ detector has a low false alarm rate but won't detect anything at all. At
 call prints out details on each test instance:
 
 ```bash
-eg1() {
+eg0() {
+    cat data/weather.arff | gawk -F, 'NF==5' | sort  | column -s, -t
+}
+
+eg1a() {
+    j4810 data/weather.arff | cat -n
+}
+
+eg1b() {
     echo 
     j48 data/weather.arff data/weather.arff
 }
