@@ -1,4 +1,5 @@
-<img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200 src="http://www.blogking.biz/wp-content/uploads/Woothemes_Ninjas.jpg">
+<img align=right height=200 src="http://www.chantetter.nl/it-fun3/go-away.jpg"><img align=right height=200
+src="https://www.woothemes.com/wp-content/uploads/2010/07/04-Ninja-Vector-i3-31.jpg">
 
 
 # Ninja tricks for Data Science
