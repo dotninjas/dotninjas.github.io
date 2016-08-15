@@ -415,15 +415,15 @@ detector has a low false alarm rate but won't detect anything at all. At
 call prints out details on each test instance:
 
 ```bash
-eg0() {
+eg1() {
     cat data/weather.arff | gawk -F, 'NF==5' | sort  | column -s, -t
 }
 
-eg1a() {
+eg2() {
     j4810 data/weather.arff | cat -n
 }
 
-eg1b() {
+eg3() {
     echo 
     j48 data/weather.arff data/weather.arff
 }
@@ -452,9 +452,9 @@ This is a little two verbose: we just want the actual and predicted values from 
 
 
 ```bash
-eg2() {
+eg4() {
     echo "j48 weather"
-    eg1 | wantgot
+    eg3 | wantgot
 }
 ```
 
@@ -480,8 +480,8 @@ We can summarize the above into precison, recall etc, using the `abcd` command w
 for each class:
 
 ```bash
-eg3() {
-    eg2 | abcd
+eg5() {
+    eg4 | abcd
 }
 ```
 
@@ -501,7 +501,7 @@ divides the data into 3 bins, then trains on two of them and tests on the other 
 the file ends with a list of learners to try (in our case, `j48` and `jrip`):
 
 ```bash
-eg4() {
+eg6() {
     crossval 1 3 data/weather.arff  1 j48 jrip;
 }
 ```
@@ -548,8 +548,8 @@ the learner and pf values to `eg5.pf`.
 
 
 ```bash
-eg5() {  
-    local out="$Tmp/eg5"
+eg7() {  
+    local out="$Tmp/eg6"
     crossval 5 5 data/weather.arff  $Seed j48 jrip  > $out
     gawk  '/yes/ {print $2,$10}' $out > ${out}.pd
     gawk  '/yes/ {print $2,$11}' $out > ${out}.pf
@@ -586,11 +586,11 @@ columns() {
 }
 ```
 
-Here's the same functionality as eg5, but with named columns:
+Here's the same functionality as eg7, but with named columns:
 
 ```bash
-eg6() {  
-    local out="$Tmp/eg6"
+eg8() {  
+    local out="$Tmp/eg8"
     crossval 5 5 data/weather.arff  $Seed j48 jrip  > $out
     columns class yes db pd  < $out > ${out}.pd
     columns class yes db pf <  $out > ${out}.pf
@@ -618,13 +618,13 @@ For each file, for each learner listed in column1, we can run significance test 
 file.
 
 ```bash
-eg7() {
-    local i=$Tmp/eg6
+eg9() {
+    local i=$Tmp/eg8
     if [ -f "$i.pd" ]; then
        report pd $i
        report pf $i
     else
-        echo "please first run eg6"
+        echo "please first run eg8"
     fi
 }
 report() {
@@ -664,12 +664,12 @@ XXX
 
 ```bash
 
-eg8() {
+eg10() {
     local data="data/jedit-4.1.arff"         # edit this line to change the data
     local learners="j48 jrip nb rbfnet bnet" # edit this line to change the leaners
     local goal=true                          # edit this line to hunt for another goal
     
-    local i="$Tmp/eg8"
+    local i="$Tmp/eg10"
     if [ -f "$i.pd" ]; then
        report pd "$i"
        report pf "$i"
@@ -677,7 +677,7 @@ eg8() {
         crossval 5 5 "$data" $Seed $learners | grep $goal >"$i"
         gawk  '{print $2,$10}' "$i" > "$i.pd"
         gawk  '{print $2,$11}' "$i" > "$i.pf"
-        eg8
+        eg10
    fi
 }
 
