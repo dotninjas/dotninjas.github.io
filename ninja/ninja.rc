@@ -1106,6 +1106,11 @@ linearRegression(){
 	local learner=weka.classifiers.functions.LinearRegression 
 	$Weka $learner -S 0 -R 1.0E-8 -p 0 -t $1 -T $2
 }
+
+lr10(){
+	local learner=weka.classifiers.functions.LinearRegression 
+	$Weka $learner -S 0 -R 1.0E-8 -i -t $1
+}
 bnet(){
         local learner=weka.classifiers.bayes.BayesNet
 	$Weka $learner -p 0 -t $1 -T $2 -D \
