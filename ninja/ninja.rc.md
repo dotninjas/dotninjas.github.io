@@ -1183,7 +1183,7 @@ used in a 10-way cross-val by "-t $1".
 
 linearRegression(){
 	local learner=weka.classifiers.functions.LinearRegression 
-	$Weka $learner -S 0 -R $3 -p 0 -t $1 -T $2
+	$Weka $learner -S 0 -R 1.0E-8 -p 0 -t $1 -T $2
 }
 bnet(){
         local learner=weka.classifiers.bayes.BayesNet
@@ -1266,6 +1266,14 @@ swayknn() {
 }
 swaynb() {
     sway --train $1 --test $2 --run nb
+}
+mlp() {
+    local learner="weka.classifiers.functions.MultilayerPerceptron -L 0.3 -M 0.2 -N 500 -V 0 -S 0 -E 20 -H a"
+    $Weka $learner -p 0  -t $1 -T $2
+}
+mlp10() {
+    local learner=weka.classifiers.functions.MultilayerPerceptron
+    $Weka $learner -L 0.3 -M 0.2 -N 500 -V 0 -S 0 -E 20 -H a  -t $1
 }
 ```
 
